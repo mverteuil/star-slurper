@@ -13,3 +13,7 @@ PRINT_TEMPLATE = config.get('source', 'print_template')
 RSS_TEMPLATE = config.get('source', 'category_template')
 # JSON list of category names to handle
 RSS_CATEGORIES = json.loads(config.get('source', 'categories'))
+
+OUTPUT_FOLDER = config.get('target', 'output_folder')
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
