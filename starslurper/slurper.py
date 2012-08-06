@@ -6,20 +6,12 @@ import re
 
 from feedreader import parser
 
+import requests
+
+import settings
+
 
 token_matcher = re.compile(r"/(\d+)--")
-PRINT_TEMPLATE = "http://www.thestar.com/printarticle/%s"
-RSS_TEMPLATE = "http://www.thestar.com/rss?category=/%s"
-RSS_CATEGORIES = [
-    "news",
-    "travel",
-    "business",
-    "opinion",
-    "news/sciencetech",
-    "sports",
-    "entertainment",
-]
-
 
 def convert_to_print_view(url):
     """ Converts article URL from the default browser view to the minimal 
@@ -27,13 +19,13 @@ def convert_to_print_view(url):
     url = str(url) # Sometimes this isn't a string proper and blows up
     match = token_matcher.search(url)
     token = match.groups()[0]
-    return PRINT_TEMPLATE % token
+    return settings.PRINT_TEMPLATE % token
 
 
 def get_articles():
     """ Get articles for all categories and return them for processing """
-    for category in RSS_CATEGORIES:
-        feed_url = RSS_TEMPLATE % category
+    for category in settings.RSS_CATEGORIES:
+        feed_url = settings.RSS_TEMPLATE % category
         feed = parser.from_url(feed_url)
         articles = [convert_to_print_view(article.id) for article in feed.entries]
         yield (category, articles)
