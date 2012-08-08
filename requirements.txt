@@ -1,2 +1,3 @@
 feedreader
 requests
+pytest

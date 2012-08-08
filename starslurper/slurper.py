@@ -108,7 +108,6 @@ def save_article(category, article):
         updated_article_data = save_images(category, article_data)
         local_copy.write(updated_article_data.encode('utf-8'))
 
-
 def main():
     work_folder = tempfile.mkdtemp()
     for category, articles in get_articles():
