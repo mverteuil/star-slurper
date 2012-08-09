@@ -1,4 +1,5 @@
-globalsub
 feedreader
-requests
+globalsub
 pytest
+pytest-cov
+requests
