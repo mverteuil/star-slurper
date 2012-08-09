@@ -1,51 +1,60 @@
+import json
+import os
 import unittest
+import shutil
+import tempfile
 
+import feedreader
 import globalsub
 import mock
+import requests
 
 from starslurper import settings
 from starslurper import slurper
 
 
-EXAMPLE_ARTICLE_URL = "http://www.thestar.com/business/article/1238545--roger-communications-and-competition-bureau-in-court-over-misleading-cellphone-ads"
 FULL_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.moneyville.ca/" target="_blank" title="Moneyville Logo"><img src="http://i.thestar.com/images/6d/5a/00f26e67488cbfbd837ed5b4d752.jpg" /></a></li>'''
 SHORT_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.derp.ca/" target="_blank" title="Derp"><img src="/content/images/derp.gif" /></a></li>'''
-ENTRY_SAMPLE = ["http://www.thestar.com/news/gta/article/1239413--toronto-mayor-rob-ford-remains-hospitalized-thursday-afternoon",
- "http://www.thestar.com/news/world/article/1239408--philippines-flooding-sun-shines-after-relentless-rain-revealing-deluge-of-debris-in-manila",
- "http://www.thestar.com/news/canada/politics/article/1239311--ontario-government-secures-third-deal-with-provincial-education-union",
- "http://www.thestar.com/news/world/article/1239397--assailants-leave-14-corpses-on-major-mexican-highway",
- "http://www.thestar.com/news/world/article/1239389--u-s-starts-landmark-cleanup-of-agent-orange-nearly-40-years-after-vietnam-war-s-end",
- "http://www.thestar.com/news/canada/article/1239381--canada-immigration-minister-jason-kenney-to-announce-ukraine-vote-observers",
- "http://www.thestar.com/news/world/article/1239364--canadian-electro-pop-star-peaches-makes-video-for-pussy-riot",
- "http://www.thestar.com/news/world/article/1239264--cairo-hit-by-massive-power-outage",
- "http://www.thestar.com/news/world/article/1239377--cambodian-leader-makes-longest-speech-5-hours-20-minutes",
- "http://www.thestar.com/news/world/article/1239357--uproar-over-greek-politician-s-move-to-hire-daughter",
- "http://www.thestar.com/news/world/article/1239353--clashes-rage-in-rebel-bastions-of-aleppo-iran-summons-meeting-of-syrian-allies",
- "http://www.thestar.com/news/world/article/1239266--underground-sect-some-of-whom-had-never-seen-daylight-found-in-russia",
- "http://www.thestar.com/news/canada/article/1239308--tony-accurso-arrested-on-allegations-of-tax-evasion",
- "http://www.thestar.com/news/world/article/1239290--mars-crater-where-rover-touched-down-looks-like-earth-scientists-say",
- "http://www.thestar.com/news/world/article/1239285--belarus-arrests-journalists-for-teddy-bear-photo-shoot",
- "http://www.thestar.com/news/world/article/1239246--murder-trial-of-disgraced-chinese-politician-s-wife-lasts-just-four-hours",
- "http://www.thestar.com/business/sciencetech/article/1239249--samsung-says-it-s-not-considering-buying-rim",
- "http://www.thestar.com/news/gta/crime/article/1239209--lawyers-across-north-america-targeted-in-email-scam-partly-run-out-of-greater-toronto-police-say",
- "http://www.thestar.com/news/gta/article/1239019--hume-setting-the-stage-for-violence-at-the-eaton-centre",
- "http://www.thestar.com/news/world/royalfamily/article/1239237--prince-harry-is-odd-man-out-in-this-cycle-of-romance"
-]
+TOKEN_SAMPLE = "1239413"
+ENTRY_SAMPLE = json.loads(open('tests/sample_entries.json','r').read())
+ARTICLE_URL_SAMPLE = ENTRY_SAMPLE[0]
+ARTICLE_SAMPLE = open('tests/sample_article.html','r+').read()
 
-class Item:
-    def __init__(self, id):
-        self.id = id
+
+def with_work_folder(wrapped):
+    """ 
+    Decorates a test by providing a temporary work folder on its instance
+    """
+    def wrapper(self):
+        errors = None
+        self.work_folder = tempfile.mkdtemp()
+        wrapped(self)
+        shutil.rmtree(self.work_folder)
+        self.work_folder = None
+    wrapper.__name__ = wrapped.__name__
+    wrapper.__doc__ = wrapped.__doc__
+    return wrapper
+
 
 class TestSlurper(unittest.TestCase):
+    """ Tests the slurper, making sure all of its core functions perform as expected """
+    def setUp(self):
+        super(TestSlurper, self).setUp()
+        self.temp_folder = tempfile.mkdtemp()
+
     def tearDown(self):
         super(TestSlurper, self).tearDown()
-        import feedreader
         globalsub.restore(feedreader.parser)
+        globalsub.restore(requests.get)
+        globalsub.restore(slurper.save_images)
+        if hasattr(self, 'work_folder') and self.work_folder:
+            shutil.rmtree(self.work_folder)
+            self.work_folder = None
 
     def test_parse_token(self):
         """ Token (unique ID) is found in a URL """
-        token = slurper.parse_token(EXAMPLE_ARTICLE_URL)
-        assert token == "1238545"
+        token = slurper.parse_token(ARTICLE_URL_SAMPLE)
+        assert token == TOKEN_SAMPLE
 
     def test_parse_img_url(self):
         """ URL of an image is found in an HTML fragment """
@@ -60,12 +69,44 @@ class TestSlurper(unittest.TestCase):
 
     def test_get_articles(self):
         """ Gets addresses for articles from RSS feed and converts to print view URL """
-        import feedreader
+        class FakeRSSItem:
+            """ Simulates an RSS20Item """
+            def __init__(self, id):
+                self.id = id
         mock_feed = mock.Mock(name="feed")
-        mock_feed.entries = [Item(url) for url in ENTRY_SAMPLE]
+        mock_feed.entries = [FakeRSSItem(url) for url in ENTRY_SAMPLE]
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
         categories = list(slurper.get_articles())
         category, articles = categories[0]
         assert len(articles) == len(ENTRY_SAMPLE)
+
+    @with_work_folder
+    def test_save_article(self):
+        """ Saves article according to category """
+        assert self.work_folder
+        mock_get = mock.Mock(name="requests_get")
+        mock_get.content = ARTICLE_SAMPLE
+        mock_save_images = mock.Mock(name="save_images")
+        mock_save_images.return_value = ARTICLE_SAMPLE.decode('utf-8')
+        globalsub.subs(requests.get, mock_get)
+        globalsub.subs(slurper.save_images, mock_save_images)
+        slurper.save_article(self.work_folder, TOKEN_SAMPLE)
+        files = os.listdir(self.work_folder)
+        for filename in files:
+            if TOKEN_SAMPLE in filename:
+                saved_data = open(os.path.join(self.work_folder, filename), "r+").read()
+        assert saved_data
+        assert saved_data == ARTICLE_SAMPLE
+
+    @with_work_folder
+    def test_save_images(self):
+        """ 
+        Saves the images for an article and switches tags to use new relative
+        paths
+        """
+        assert self.work_folder
+        slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+        # Run it again and make sure it doesn't redownload
+        slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
