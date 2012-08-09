@@ -11,14 +11,15 @@ import requests
 
 from starslurper import settings
 from starslurper import slurper
+from tests.util import read_sample
 
 
 FULL_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.moneyville.ca/" target="_blank" title="Moneyville Logo"><img src="http://i.thestar.com/images/6d/5a/00f26e67488cbfbd837ed5b4d752.jpg" /></a></li>'''
 SHORT_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.derp.ca/" target="_blank" title="Derp"><img src="/content/images/derp.gif" /></a></li>'''
 TOKEN_SAMPLE = "1239413"
-ENTRY_SAMPLE = json.loads(open('tests/sample_entries.json','r').read())
+ENTRY_SAMPLE = json.loads(read_sample('sample_entries.json'))
 ARTICLE_URL_SAMPLE = ENTRY_SAMPLE[0]
-ARTICLE_SAMPLE = open('tests/sample_article.html','r+').read()
+ARTICLE_SAMPLE = read_sample('sample_article.html')
 
 
 def with_work_folder(wrapped):
