@@ -1,5 +1,6 @@
 feedreader
 globalsub
+mock
 pytest
 pytest-cov
 requests
