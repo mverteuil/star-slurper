@@ -85,13 +85,13 @@ def save_images(category, article_data):
     for image_tag in find_article_images(article_data):
         image_url = add_base_if_missing(image_tag.get('src'))
         local_name = urlparse(image_url).path.replace("/","_")[1:]
+        image_tag['src'] = local_name
         local_path = os.path.join(category, local_name)
         if not os.path.exists(local_path):
             log.info("Downloading %s to %s", image_url, local_path)
             with open(local_path, "wb") as local_image:
                 response = requests.get(image_url)
                 local_image.write(response.content)
-            image_tag['src'] = local_name
         else:
             log.debug("%s already exists. Skipping.",  local_path)
     return article_data
