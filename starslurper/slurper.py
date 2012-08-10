@@ -2,6 +2,7 @@
 """
 Toronto Star News Grabber and Formatter
 """
+import logging
 import os
 import re
 import shutil
@@ -14,9 +15,41 @@ import requests
 
 import settings
 
+LOGGING_ENABLED = False
+log = logging.getLogger(__name__)
+
 
 image_url_matcher = re.compile(r"<img [^>]*src=\"([^\"]+)\"[^>]*>")
 token_matcher = re.compile(r"/(\d+)--")
+
+
+def with_logging(logged):
+    """
+    Enables logging on the instrumented function
+
+    logged -- The function which requires logging enabled
+    """
+    def enable_logging():
+        if settings.DEBUG:
+            log.setLevel(settings.LOG_LEVEL)
+            log_file = logging.FileHandler(settings.LOG_FILE)
+            log_file.setFormatter(logging.Formatter(settings.LOG_FILE_FORMAT))
+            log_stdout = logging.StreamHandler()
+            log_stdout.setFormatter(logging.Formatter(settings.LOG_STDOUT_FORMAT))
+            for handler in (log_file, log_stdout):
+                handler.setLevel(settings.LOG_LEVEL)
+                log.addHandler(handler)
+
+    def wrapper(*args, **kwargs):
+        global LOGGING_ENABLED
+        if not LOGGING_ENABLED:
+            LOGGING_ENABLED = True
+            enable_logging()
+        return logged(*args, **kwargs)
+    wrapper.__name__ = logged.__name__
+    wrapper.__doc__ = logged.__doc__
+    return wrapper
+
 
 def parse_token(url):
     """
@@ -72,24 +105,24 @@ def save_images(category, article_data):
         local_name = urlparse(image_url).path.replace("/","_")[1:]
         local_path = os.path.join(category, local_name)
         if not os.path.exists(local_path):
-            print "Downloading %s to %s" % (image_url, local_path)
+            log.info("Downloading %s to %s", image_url, local_path)
             with open(local_path, "wb") as local_image:
                 response = requests.get(image_url)
                 local_image.write(response.content)
         else:
-            print "%s already exists. Skipping." % local_path
+            log.debug("%s already exists. Skipping.",  local_path)
         replacements[image_url] = os.path.split(local_path)[1]
     return replace_all(article_data, replacements)
 
 
 def get_articles():
     """ Gets articles for all categories and return them for processing """
-    print "Fetching article list..."
+    log.info("Fetching article list...")
     for category in settings.RSS_CATEGORIES:
         feed_url = settings.RSS_TEMPLATE % category
         feed = parser.from_url(feed_url)
         articles = [parse_token(article.id) for article in feed.entries]
-        print "%s (%d articles)" % ( category, len(articles) )
+        log.info("%s (%d articles)", category, len(articles))
         yield (category, articles)
 
 
@@ -101,14 +134,18 @@ def save_article(category, article):
     article -- The article token
     """
     article_url = settings.PRINT_TEMPLATE % article
-    print "Downloading %s" % article_url
+    log.info("Downloading %s", article_url)
     response = requests.get(article_url)
     article_data = response.content.decode('utf-8')
     with open(os.path.join(category, "%s.html" % article), "wb") as local_copy:
         updated_article_data = save_images(category, article_data)
         local_copy.write(updated_article_data.encode('utf-8'))
 
+
+@with_logging
 def main():
+    if os.path.exists(settings.OUTPUT_FOLDER):
+        shutil.rmtree(settings.OUTPUT_FOLDER)
     work_folder = tempfile.mkdtemp()
     for category, articles in get_articles():
         cat_folder = os.path.join(work_folder, category)
@@ -117,7 +154,7 @@ def main():
             save_article(cat_folder, article)
         shutil.move(cat_folder, settings.OUTPUT_FOLDER)
     shutil.rmtree(work_folder)
-    print "Done!"
+    log.info("Done!")
 
 if __name__ == "__main__":
     main()

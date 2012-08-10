@@ -1,5 +1,6 @@
 """ Main Configuration """
 import json
+import logging
 import os
 from ConfigParser import ConfigParser
 
@@ -18,3 +19,9 @@ BASE_URL = config.get('source', 'base_url')
 OUTPUT_FOLDER = config.get('target', 'output_folder')
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)
+
+DEBUG = config.getboolean('debug', 'enabled')
+LOG_FILE = config.get('debug', 'log_file')
+LOG_LEVEL = getattr(logging, config.get('debug', 'log_level'), "DEBUG")
+LOG_FILE_FORMAT = "[%(levelname)s:%(pathname)s:%(lineno)s] %(message)s"
+LOG_STDOUT_FORMAT = "%(message)s"
