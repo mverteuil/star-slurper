@@ -9,8 +9,8 @@ import shutil
 import tempfile
 from urlparse import urlparse
 
+from bs4 import BeautifulSoup
 from feedreader import parser
-
 import requests
 
 import settings
@@ -19,7 +19,6 @@ LOGGING_ENABLED = False
 log = logging.getLogger(__name__)
 
 
-image_url_matcher = re.compile(r"<img [^>]*src=\"([^\"]+)\"[^>]*>")
 token_matcher = re.compile(r"/(\d+)--")
 
 
@@ -62,30 +61,13 @@ def parse_token(url):
     return token
 
 
-def parse_img_url(html):
-    """
-    Removes the part of the img tag that's not necessary and returns the url
-
-    html -- html snippet containing an img tag
-    """
-    html = str(html)
-    match = image_url_matcher.search(html)
-    img_url = match.groups()[0]
-    return img_url
-
-
 def find_article_images(article_data):
     """
-    Finds images for a local copy of a downloaded article and retuns a list
-    of their urls.
+    Finds images in a BeautifulSoup object and returns a list of tags
 
-    article_data -- The local downloaded HTML data of a print-view article
+    article_data -- The BeautifulSoup of a print-view article
     """
-    parsed = [parse_img_url(line) for line in article_data.split("\r") if "<img" in line]
-    for url in parsed:
-        if not url.startswith("http"):
-            url = settings.BASE_URL + url
-        yield url
+    return article_data.findAll("img")
 
 
 def save_images(category, article_data):
@@ -94,14 +76,14 @@ def save_images(category, article_data):
     in the article data with local copies.
 
     category -- The category path for the article
-    article_data -- The local downloaded HTML data of a print-view article
+    article_data -- The BeautifulSoup of a print-view article
     """
-    def replace_all(text, dic):
-        for i, j in dic.iteritems():
-            text = text.replace(i, j)
-        return text
-    replacements = dict()
-    for image_url in find_article_images(article_data):
+    def add_base_if_missing(url):
+        if not url.startswith('http'):
+            return settings.BASE_URL + url
+        return url
+    for image_tag in find_article_images(article_data):
+        image_url = add_base_if_missing(image_tag.get('src'))
         local_name = urlparse(image_url).path.replace("/","_")[1:]
         local_path = os.path.join(category, local_name)
         if not os.path.exists(local_path):
@@ -109,10 +91,10 @@ def save_images(category, article_data):
             with open(local_path, "wb") as local_image:
                 response = requests.get(image_url)
                 local_image.write(response.content)
+            image_tag['src'] = local_name
         else:
             log.debug("%s already exists. Skipping.",  local_path)
-        replacements[image_url] = os.path.split(local_path)[1]
-    return replace_all(article_data, replacements)
+    return article_data
 
 
 def get_articles():
@@ -136,10 +118,10 @@ def save_article(category, article):
     article_url = settings.PRINT_TEMPLATE % article
     log.info("Downloading %s", article_url)
     response = requests.get(article_url)
-    article_data = response.content.decode('utf-8')
+    article_data = BeautifulSoup(response.content)
     with open(os.path.join(category, "%s.html" % article), "wb") as local_copy:
-        updated_article_data = save_images(category, article_data)
-        local_copy.write(updated_article_data.encode('utf-8'))
+        article_data = save_images(category, article_data)
+        local_copy.write(article_data.prettify().encode('utf-8'))
 
 
 @with_logging

@@ -4,6 +4,7 @@ import unittest
 import shutil
 import tempfile
 
+import bs4
 import feedreader
 import globalsub
 import mock
@@ -42,8 +43,7 @@ class TestSlurper(unittest.TestCase):
     def setUp(self):
         super(TestSlurper, self).setUp()
         self.temp_folder = tempfile.mkdtemp()
-        if os.path.exists(settings.OUTPUT_FOLDER):
-            shutil.rmtree(settings.OUTPUT_FOLDER)
+        self.soup = bs4.BeautifulSoup(ARTICLE_SAMPLE)
 
     def tearDown(self):
         super(TestSlurper, self).tearDown()
@@ -60,17 +60,6 @@ class TestSlurper(unittest.TestCase):
         """ Token (unique ID) is found in a URL """
         token = slurper.parse_token(ARTICLE_URL_SAMPLE)
         assert token == TOKEN_SAMPLE
-
-    def test_parse_img_url(self):
-        """ URL of an image is found in an HTML fragment """
-        img_url = slurper.parse_img_url(FULL_IMAGE_URL)
-        assert img_url == "http://i.thestar.com/images/6d/5a/00f26e67488cbfbd837ed5b4d752.jpg"
-
-    def test_prepends_on_short_urls(self):
-        """ Prepends server/protocol to relative URLs """
-        images = list(slurper.find_article_images(SHORT_IMAGE_URL))[0]
-        assert images
-        assert "http://www.thestar.com" in images
 
     def test_get_articles(self):
         """ Gets addresses for articles from RSS feed and converts to print view URL """
@@ -92,9 +81,10 @@ class TestSlurper(unittest.TestCase):
         """ Saves article according to category """
         assert self.work_folder
         mock_get = mock.Mock(name="requests_get")
-        mock_get.content = ARTICLE_SAMPLE
+        mock_get.return_value = mock.Mock()
+        mock_get.return_value.content = ARTICLE_SAMPLE.decode('latin-1')
         mock_save_images = mock.Mock(name="save_images")
-        mock_save_images.return_value = ARTICLE_SAMPLE.decode('utf-8')
+        mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
         globalsub.subs(slurper.save_images, mock_save_images)
         slurper.save_article(self.work_folder, TOKEN_SAMPLE)
@@ -103,7 +93,6 @@ class TestSlurper(unittest.TestCase):
             if TOKEN_SAMPLE in filename:
                 saved_data = open(os.path.join(self.work_folder, filename), "r+").read()
         assert saved_data
-        assert saved_data == ARTICLE_SAMPLE
 
     @with_work_folder
     def test_save_images(self):
@@ -112,12 +101,12 @@ class TestSlurper(unittest.TestCase):
         paths
         """
         assert self.work_folder
-        slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+        slurper.save_images(self.work_folder, self.soup)
         # Run it again and make sure it doesn't redownload
-        result = slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+        result = slurper.save_images(self.work_folder, self.soup)
         assert result
-        assert "http://i.thestar.com" not in result
-        assert "images_7a_52_aa283d4a47ba85a647b5ef2ea07e.jpg" in result
+        assert "http://i.thestar.com" not in str(result)
+        assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in str(result)
 
     def test_main_happy_path(self):
         """
