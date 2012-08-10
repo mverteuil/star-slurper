@@ -114,7 +114,10 @@ class TestSlurper(unittest.TestCase):
         assert self.work_folder
         slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
         # Run it again and make sure it doesn't redownload
-        slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+        result = slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+        assert result
+        assert "http://i.thestar.com" not in result
+        assert "images_7a_52_aa283d4a47ba85a647b5ef2ea07e.jpg" in result
 
     def test_main_happy_path(self):
         """
