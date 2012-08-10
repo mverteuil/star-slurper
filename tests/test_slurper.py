@@ -42,11 +42,15 @@ class TestSlurper(unittest.TestCase):
     def setUp(self):
         super(TestSlurper, self).setUp()
         self.temp_folder = tempfile.mkdtemp()
+        if os.path.exists(settings.OUTPUT_FOLDER):
+            shutil.rmtree(settings.OUTPUT_FOLDER)
 
     def tearDown(self):
         super(TestSlurper, self).tearDown()
         globalsub.restore(feedreader.parser)
         globalsub.restore(requests.get)
+        globalsub.restore(slurper.get_articles)
+        globalsub.restore(slurper.save_article)
         globalsub.restore(slurper.save_images)
         if hasattr(self, 'work_folder') and self.work_folder:
             shutil.rmtree(self.work_folder)
@@ -111,3 +115,15 @@ class TestSlurper(unittest.TestCase):
         slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
         # Run it again and make sure it doesn't redownload
         slurper.save_images(self.work_folder, ARTICLE_SAMPLE)
+
+    def test_main_happy_path(self):
+        """
+        Runs through when everything behaves as it should
+        """
+        mock_get_articles = mock.Mock(name="get_articles")
+        mock_get_articles.return_value = [('news',[ARTICLE_URL_SAMPLE],)]
+        globalsub.subs(slurper.get_articles, mock_get_articles)
+        mock_save_article =  mock.Mock(name="save_article")
+        mock_save_article.return_value = None
+        globalsub.subs(slurper.save_article, mock_save_article)
+        slurper.main()
