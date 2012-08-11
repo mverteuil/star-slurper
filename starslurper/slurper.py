@@ -108,6 +108,17 @@ def get_articles():
         yield (category, articles)
 
 
+def remove_tags(article_soup):
+    """
+    Removes unwanted tags from the document
+
+    article_soup -- bs4 article data
+    """
+    for link in article_soup.findAll('link'):
+        link.decompose()
+    return article_soup
+
+
 def save_article(category, article):
     """
     Saves an article's print view data to a category folder
@@ -121,6 +132,7 @@ def save_article(category, article):
     article_data = BeautifulSoup(response.content)
     with open(os.path.join(category, "%s.html" % article), "wb") as local_copy:
         article_data = save_images(category, article_data)
+        remove_tags(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
 
 

@@ -94,6 +94,12 @@ class TestSlurper(unittest.TestCase):
                 saved_data = open(os.path.join(self.work_folder, filename), "r+").read()
         assert saved_data
 
+    def test_remove_tags(self):
+        """ Removes unwanted tags from the article """
+        result = slurper.remove_tags(self.soup)
+        assert len(result.findAll('link')) == 0
+        assert len(self.soup.findAll('link')) == 0
+
     @with_work_folder
     def test_save_images(self):
         """ 
