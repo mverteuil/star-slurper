@@ -69,7 +69,7 @@ class TestSlurper(unittest.TestCase):
         mock_get_articles.return_value = [ARTICLE_URL_SAMPLE]
         globalsub.subs(slurper.get_articles, mock_get_articles)
         mock_save_article = mock.Mock(name="save_article")
-        mock_save_article.return_value = None
+        mock_save_article.return_value = slurper.Article(self.soup, None)
         globalsub.subs(slurper.save_article, mock_save_article)
         cat_folder = slurper.save_category(self.work_folder, "derp")
         assert cat_folder
@@ -104,8 +104,9 @@ class TestSlurper(unittest.TestCase):
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
         globalsub.subs(slurper.save_images, mock_save_images)
-        article_path = slurper.save_article(self.work_folder, TOKEN_SAMPLE)
-        saved_data = open(article_path, "r+").read()
+        article = slurper.save_article(self.work_folder, TOKEN_SAMPLE)
+        assert article.title == self.soup.findAll('h1')[0].text
+        saved_data = open(article.path, "r+").read()
         assert saved_data
 
     def test_remove_tags(self):
@@ -150,6 +151,6 @@ class TestSlurper(unittest.TestCase):
         mock_get_articles.return_value = [('news', [ARTICLE_URL_SAMPLE],)]
         globalsub.subs(slurper.get_articles, mock_get_articles)
         mock_save_article = mock.Mock(name="save_article")
-        mock_save_article.return_value = None
+        mock_save_article.return_value = slurper.Article(self.soup, None)
         globalsub.subs(slurper.save_article, mock_save_article)
         slurper.main()

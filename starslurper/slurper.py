@@ -22,6 +22,22 @@ log = logging.getLogger(__name__)
 token_matcher = re.compile(r"/(\d+)--")
 
 
+class Article(object):
+    """ Contains article metadata and file path """
+    title = None
+    path = None
+
+    def __init__(self, article_soup, path):
+        """
+        Parses the soup for article metadata and sets the path
+
+        article_soup -- bs4 article data
+        path -- path to the downloaded html
+        """
+        self.title = article_soup.findAll('h1')[0].text
+        self.path = path
+
+
 def with_logging(logged):
     """
     Enables logging on the instrumented function
@@ -164,7 +180,7 @@ def save_article(category, article):
         remove_tags(article_data)
         set_content_type(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
-    return article_path
+    return Article(article_data, article_path)
 
 
 def save_category(work_folder, category):
@@ -178,7 +194,8 @@ def save_category(work_folder, category):
     cat_folder = os.path.join(work_folder, category)
     os.makedirs(cat_folder)
     for article in get_articles(category):
-        save_article(cat_folder, article)
+        article = save_article(cat_folder, article)
+        log.info("%s (%s)", article.title, article.path)
     return cat_folder
 
 
