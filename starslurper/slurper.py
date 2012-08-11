@@ -34,7 +34,9 @@ def with_logging(logged):
             log_file = logging.FileHandler(settings.LOG_FILE)
             log_file.setFormatter(logging.Formatter(settings.LOG_FILE_FORMAT))
             log_stdout = logging.StreamHandler()
-            log_stdout.setFormatter(logging.Formatter(settings.LOG_STDOUT_FORMAT))
+            log_stdout.setFormatter(
+                logging.Formatter(settings.LOG_STDOUT_FORMAT)
+            )
             for handler in (log_file, log_stdout):
                 handler.setLevel(settings.LOG_LEVEL)
                 log.addHandler(handler)
@@ -55,7 +57,7 @@ def parse_token(url):
     Converts article URL from the default browser view to the unique ID
     that represents it
     """
-    url = str(url) # Sometimes this isn't a string proper and blows up
+    url = str(url)  # Sometimes this isn't a string proper and blows up
     match = token_matcher.search(url)
     token = match.groups()[0]
     return token
@@ -72,8 +74,8 @@ def find_article_images(article_data):
 
 def save_images(category, article_data):
     """
-    Saves images for a local copy of a downloaded article and replaces references
-    in the article data with local copies.
+    Saves images for a local copy of a downloaded article and replaces
+    references in the article data with local copies.
 
     category -- The category path for the article
     article_data -- The BeautifulSoup of a print-view article
@@ -84,7 +86,7 @@ def save_images(category, article_data):
         return url
     for image_tag in find_article_images(article_data):
         image_url = add_base_if_missing(image_tag.get('src'))
-        local_name = urlparse(image_url).path.replace("/","_")[1:]
+        local_name = urlparse(image_url).path.replace("/", "_")[1:]
         image_tag['src'] = local_name
         local_path = os.path.join(category, local_name)
         if not os.path.exists(local_path):
@@ -93,7 +95,7 @@ def save_images(category, article_data):
                 response = requests.get(image_url)
                 local_image.write(response.content)
         else:
-            log.debug("%s already exists. Skipping.",  local_path)
+            log.debug("%s already exists. Skipping.", local_path)
     return article_data
 
 

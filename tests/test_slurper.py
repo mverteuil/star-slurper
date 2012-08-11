@@ -10,13 +10,12 @@ import globalsub
 import mock
 import requests
 
-from starslurper import settings
 from starslurper import slurper
 from tests.util import read_sample
 
 
-FULL_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.moneyville.ca/" target="_blank" title="Moneyville Logo"><img src="http://i.thestar.com/images/6d/5a/00f26e67488cbfbd837ed5b4d752.jpg" /></a></li>'''
-SHORT_IMAGE_URL = '''<li class="tdLast" data-assetuid="1116788"><a href="http://www.derp.ca/" target="_blank" title="Derp"><img src="/content/images/derp.gif" /></a></li>'''
+FULL_IMAGE_URL = read_sample('sample_long.url')
+SHORT_IMAGE_URL = read_sample('sample_short.url')
 TOKEN_SAMPLE = "1239413"
 ENTRY_SAMPLE = json.loads(read_sample('sample_entries.json'))
 ARTICLE_URL_SAMPLE = ENTRY_SAMPLE[0]
@@ -24,11 +23,10 @@ ARTICLE_SAMPLE = read_sample('sample_article.html')
 
 
 def with_work_folder(wrapped):
-    """ 
+    """
     Decorates a test by providing a temporary work folder on its instance
     """
     def wrapper(self):
-        errors = None
         self.work_folder = tempfile.mkdtemp()
         wrapped(self)
         shutil.rmtree(self.work_folder)
@@ -39,7 +37,10 @@ def with_work_folder(wrapped):
 
 
 class TestSlurper(unittest.TestCase):
-    """ Tests the slurper, making sure all of its core functions perform as expected """
+    """
+    Tests the slurper, making sure all of its core functions
+    perform as expected
+    """
     def setUp(self):
         super(TestSlurper, self).setUp()
         self.temp_folder = tempfile.mkdtemp()
@@ -62,7 +63,10 @@ class TestSlurper(unittest.TestCase):
         assert token == TOKEN_SAMPLE
 
     def test_get_articles(self):
-        """ Gets addresses for articles from RSS feed and converts to print view URL """
+        """
+        Gets addresses for articles from RSS feed and converts
+        to print view URL
+        """
         class FakeRSSItem:
             """ Simulates an RSS20Item """
             def __init__(self, id):
@@ -91,7 +95,8 @@ class TestSlurper(unittest.TestCase):
         files = os.listdir(self.work_folder)
         for filename in files:
             if TOKEN_SAMPLE in filename:
-                saved_data = open(os.path.join(self.work_folder, filename), "r+").read()
+                file_path = os.path.join(self.work_folder, filename)
+                saved_data = open(file_path, "r+").read()
         assert saved_data
 
     def test_remove_tags(self):
@@ -99,7 +104,8 @@ class TestSlurper(unittest.TestCase):
         result = slurper.remove_tags(self.soup)
         assert len(result.findAll('link')) == 0
         assert len(self.soup.findAll('link')) == 0
-        assert len(self.soup.findAll(attrs={'style':lambda x:x is not None})) == 0
+        is_not_none = lambda x: x is not None
+        assert len(self.soup.findAll(attrs={'style': is_not_none})) == 0
 
     def test_set_content_type(self):
         """ Sets the correct encoding for the article data """
@@ -111,7 +117,7 @@ class TestSlurper(unittest.TestCase):
 
     @with_work_folder
     def test_save_images(self):
-        """ 
+        """
         Saves the images for an article and switches tags to use new relative
         paths
         """
@@ -122,16 +128,17 @@ class TestSlurper(unittest.TestCase):
         slurper.save_images(self.work_folder, self.soup)
         assert result
         assert "http://i.thestar.com" not in str(result)
-        assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in [img['src'] for img in result.findAll('img')]
+        sources = [img['src'] for img in result.findAll('img')]
+        assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in sources
 
     def test_main_happy_path(self):
         """
         Runs through when everything behaves as it should
         """
         mock_get_articles = mock.Mock(name="get_articles")
-        mock_get_articles.return_value = [('news',[ARTICLE_URL_SAMPLE],)]
+        mock_get_articles.return_value = [('news', [ARTICLE_URL_SAMPLE],)]
         globalsub.subs(slurper.get_articles, mock_get_articles)
-        mock_save_article =  mock.Mock(name="save_article")
+        mock_save_article = mock.Mock(name="save_article")
         mock_save_article.return_value = None
         globalsub.subs(slurper.save_article, mock_save_article)
         slurper.main()

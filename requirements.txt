@@ -3,5 +3,6 @@ feedreader
 globalsub
 mock
 pytest
+pytest-codecheckers
 pytest-cov
 requests
