@@ -100,6 +100,15 @@ class TestSlurper(unittest.TestCase):
         assert len(result.findAll('link')) == 0
         assert len(self.soup.findAll('link')) == 0
 
+
+    def test_set_content_type(self):
+        """ Sets the correct encoding for the article data """
+        result = slurper.set_content_type(self.soup)
+        meta_tag = result.find('meta')
+        assert meta_tag
+        assert meta_tag.get('http-equiv')
+        assert "utf-8" in meta_tag.get('content')
+
     @with_work_folder
     def test_save_images(self):
         """ 

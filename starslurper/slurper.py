@@ -119,6 +119,18 @@ def remove_tags(article_soup):
     return article_soup
 
 
+def set_content_type(article_soup):
+    """
+    Sets the correct encoding for the document
+
+    article_soup -- bs4 article data
+    """
+    meta_tag = article_soup.new_tag("meta", content="text/html;charset=utf-8")
+    meta_tag["http-equiv"] = "Content-Type"
+    article_soup.find("head").append(meta_tag)
+    return article_soup
+
+
 def save_article(category, article):
     """
     Saves an article's print view data to a category folder
