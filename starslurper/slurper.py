@@ -145,6 +145,7 @@ def save_article(category, article):
     with open(os.path.join(category, "%s.html" % article), "wb") as local_copy:
         article_data = save_images(category, article_data)
         remove_tags(article_data)
+        set_content_type(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
 
 
