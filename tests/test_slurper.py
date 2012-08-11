@@ -1,5 +1,4 @@
 import json
-import os
 import unittest
 import shutil
 import tempfile
@@ -105,12 +104,8 @@ class TestSlurper(unittest.TestCase):
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
         globalsub.subs(slurper.save_images, mock_save_images)
-        slurper.save_article(self.work_folder, TOKEN_SAMPLE)
-        files = os.listdir(self.work_folder)
-        for filename in files:
-            if TOKEN_SAMPLE in filename:
-                file_path = os.path.join(self.work_folder, filename)
-                saved_data = open(file_path, "r+").read()
+        article_path = slurper.save_article(self.work_folder, TOKEN_SAMPLE)
+        saved_data = open(article_path, "r+").read()
         assert saved_data
 
     def test_remove_tags(self):

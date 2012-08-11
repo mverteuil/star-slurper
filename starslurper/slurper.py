@@ -158,11 +158,13 @@ def save_article(category, article):
     log.info("Downloading %s", article_url)
     response = requests.get(article_url)
     article_data = BeautifulSoup(response.content)
-    with open(os.path.join(category, "%s.html" % article), "wb") as local_copy:
+    article_path = os.path.join(category, "%s.html" % article)
+    with open(article_path, "wb") as local_copy:
         article_data = save_images(category, article_data)
         remove_tags(article_data)
         set_content_type(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
+    return article_path
 
 
 def save_category(work_folder, category):
