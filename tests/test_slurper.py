@@ -99,7 +99,7 @@ class TestSlurper(unittest.TestCase):
         result = slurper.remove_tags(self.soup)
         assert len(result.findAll('link')) == 0
         assert len(self.soup.findAll('link')) == 0
-
+        assert len(self.soup.findAll(attrs={'style':lambda x:x is not None})) == 0
 
     def test_set_content_type(self):
         """ Sets the correct encoding for the article data """

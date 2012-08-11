@@ -116,6 +116,8 @@ def remove_tags(article_soup):
     """
     for link in article_soup.findAll('link'):
         link.decompose()
+    for tag in article_soup.findAll(True):
+        del(tag['style'])
     return article_soup
 
 
