@@ -99,15 +99,18 @@ def save_images(category, article_data):
     return article_data
 
 
-def get_articles():
-    """ Gets articles for all categories and return them for processing """
-    log.info("Fetching article list...")
-    for category in settings.RSS_CATEGORIES:
-        feed_url = settings.RSS_TEMPLATE % category
-        feed = parser.from_url(feed_url)
-        articles = [parse_token(article.id) for article in feed.entries]
-        log.info("%s (%d articles)", category, len(articles))
-        yield (category, articles)
+def get_articles(category):
+    """
+    Gets articles for all categories and return them for processing
+
+    category -- Category ID
+    """
+    log.info("Fetching %s article list...", category)
+    feed_url = settings.RSS_TEMPLATE % category
+    feed = parser.from_url(feed_url)
+    articles = [parse_token(article.id) for article in feed.entries]
+    log.info("(%d articles)", len(articles))
+    return articles
 
 
 def remove_tags(article_soup):
@@ -162,16 +165,28 @@ def save_article(category, article):
         local_copy.write(article_data.prettify().encode('utf-8'))
 
 
+def save_category(work_folder, category):
+    """
+    Retrieves a news category and saves the contents to disk
+
+    work_folder -- The working directory where category data should be
+                   saved during processing
+    category -- The news category to retrieve
+    """
+    cat_folder = os.path.join(work_folder, category)
+    os.makedirs(cat_folder)
+    for article in get_articles(category):
+        save_article(cat_folder, article)
+    return cat_folder
+
+
 @with_logging
 def main():
     if os.path.exists(settings.OUTPUT_FOLDER):
         shutil.rmtree(settings.OUTPUT_FOLDER)
     work_folder = tempfile.mkdtemp()
-    for category, articles in get_articles():
-        cat_folder = os.path.join(work_folder, category)
-        os.makedirs(cat_folder)
-        for article in articles:
-            save_article(cat_folder, article)
+    for category in settings.RSS_CATEGORIES:
+        cat_folder = save_category(work_folder, category)
         shutil.move(cat_folder, settings.OUTPUT_FOLDER)
     shutil.rmtree(work_folder)
     log.info("Done!")

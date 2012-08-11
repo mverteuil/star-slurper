@@ -62,6 +62,21 @@ class TestSlurper(unittest.TestCase):
         token = slurper.parse_token(ARTICLE_URL_SAMPLE)
         assert token == TOKEN_SAMPLE
 
+    @with_work_folder
+    def test_save_category(self):
+        """ Saves a category and its articles given an ID """
+        assert self.work_folder
+        mock_get_articles = mock.Mock(name="get_articles")
+        mock_get_articles.return_value = [ARTICLE_URL_SAMPLE]
+        globalsub.subs(slurper.get_articles, mock_get_articles)
+        mock_save_article = mock.Mock(name="save_article")
+        mock_save_article.return_value = None
+        globalsub.subs(slurper.save_article, mock_save_article)
+        cat_folder = slurper.save_category(self.work_folder, "derp")
+        assert cat_folder
+        assert mock_get_articles.call_count == 1
+        assert mock_save_article.call_count == 1
+
     def test_get_articles(self):
         """
         Gets addresses for articles from RSS feed and converts
@@ -76,8 +91,7 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        categories = list(slurper.get_articles())
-        category, articles = categories[0]
+        articles = slurper.get_articles("derp")
         assert len(articles) == len(ENTRY_SAMPLE)
 
     @with_work_folder
