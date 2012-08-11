@@ -101,12 +101,13 @@ class TestSlurper(unittest.TestCase):
         paths
         """
         assert self.work_folder
-        slurper.save_images(self.work_folder, self.soup)
-        # Run it again and make sure it doesn't redownload
         result = slurper.save_images(self.work_folder, self.soup)
+        # Run it again and make sure it doesn't redownload
+        self.setUp()
+        slurper.save_images(self.work_folder, self.soup)
         assert result
         assert "http://i.thestar.com" not in str(result)
-        assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in str(result)
+        assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in [img['src'] for img in result.findAll('img')]
 
     def test_main_happy_path(self):
         """
