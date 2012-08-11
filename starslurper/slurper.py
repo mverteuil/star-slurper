@@ -116,8 +116,17 @@ def remove_tags(article_soup):
 
     article_soup -- bs4 article data
     """
-    for link in article_soup.findAll('link'):
-        link.decompose()
+    def unwanted_tags():
+        """ Generates a list of unwanted tags """
+        # Remove CSS links
+        for link in article_soup.findAll('link'):
+            yield link
+        # Remove "Back to article" anchor
+        has_back_to = lambda x: "Back to" in x.string if x else False
+        for anchor in article_soup.findAll("a", text=has_back_to):
+            yield anchor
+    for tag in unwanted_tags():
+        tag.decompose()
     for tag in article_soup.findAll(True):
         del(tag['style'])
     return article_soup

@@ -106,6 +106,8 @@ class TestSlurper(unittest.TestCase):
         assert len(self.soup.findAll('link')) == 0
         is_not_none = lambda x: x is not None
         assert len(self.soup.findAll(attrs={'style': is_not_none})) == 0
+        has_back_to_article = lambda x: "Back to" in x.string
+        assert len(self.soup.findAll(text=has_back_to_article)) == 0
 
     def test_set_content_type(self):
         """ Sets the correct encoding for the article data """
