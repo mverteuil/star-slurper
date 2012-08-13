@@ -85,6 +85,21 @@ class Category(object):
         return toc
 
 
+class Edition(object):
+    """ Newspaper edition. Editions contain a set of categories """
+    date = datetime.today()
+    categories = []
+
+    def __init__(self, rss_categories):
+        """ Generates the current edition from a list of RSS categories """
+        self.categories = [Category(c) for c in rss_categories]
+
+    def save(self):
+        """ Saves this edition to disk """
+        for category in self.categories:
+            save_category(category)
+
+
 def with_logging(logged):
     """
     Enables logging on the instrumented function
@@ -266,8 +281,8 @@ def main():
         settings.OUTPUT_FOLDER,
         ignore=lambda x, y: ["_cat_toc.html", "index.html"],
     )
-    for category in [Category(c) for c in settings.RSS_CATEGORIES]:
-        save_category(category)
+    newspaper = Edition(settings.RSS_CATEGORIES)
+    newspaper.save()
     log.info("Done!")
 
 if __name__ == "__main__":
