@@ -100,6 +100,8 @@ class Edition(object):
     """ Newspaper edition. Editions contain a set of categories """
     date = datetime.today()
     categories = []
+    toc_path = os.path.join(settings.OUTPUT_FOLDER,
+                            settings.INDEX_HTML_TEMPLATE)
 
     def __init__(self, rss_categories):
         """ Generates the current edition from a list of RSS categories """
@@ -109,6 +111,29 @@ class Edition(object):
         """ Saves this edition to disk """
         for category in self.categories:
             category.save()
+        self.save_table_of_contents()
+
+    def save_table_of_contents(self):
+        """ Generates HTML table of contents from current state """
+        metadata = {
+            'date': datetime.today().isoformat(),
+        }
+        template = os.path.join(
+            settings.TEMPLATE_FOLDER,
+            settings.INDEX_HTML_TEMPLATE,
+        )
+        toc = BeautifulSoup(open(template, "r+"))
+        for tag in toc.findAll(['title', 'h1']):
+            tag.string = (tag.string % metadata)
+        for category in self.categories:
+            listitem_tag = toc.new_tag("li")
+            anchor_tag = toc.new_tag("a", href=category.toc_path)
+            anchor_tag.string = category.name
+            listitem_tag.append(anchor_tag)
+            toc.find('ul').append(listitem_tag)
+        with open(self.toc_path, "w+") as toc_file:
+            toc_file.write(toc.prettify().encode('utf-8'))
+        return toc
 
 
 def with_logging(logged):

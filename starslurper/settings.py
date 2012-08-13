@@ -18,6 +18,7 @@ RSS_TEMPLATE = config.get('source', 'category_template')
 RSS_CATEGORIES = json.loads(config.get('source', 'categories'))
 BASE_URL = config.get('source', 'base_url')
 
+INDEX_HTML_TEMPLATE = "index.html"
 CATEGORY_HTML_TEMPLATE = "_cat_toc.html"
 TEMPLATE_FOLDER = os.path.join(PROJECT_FOLDER, "template")
 OUTPUT_FOLDER = config.get('target', 'output_folder')
