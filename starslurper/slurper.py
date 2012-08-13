@@ -41,6 +41,44 @@ class Article(object):
         self.path = path
 
 
+class Category(object):
+    """ News category. Categories contain a set of Articles """
+    name = None
+    toc_path = None
+    folder_path = None
+    feed_url = None
+    articles = []
+
+    def __init__(self, name):
+        self.name = name
+        self.toc_path = os.path.join(settings.OUTPUT_FOLDER, "%s.html" % name)
+        self.folder_path = os.path.join(settings.OUTPUT_FOLDER, name)
+        self.feed_url = settings.RSS_TEMPLATE % name
+
+    def save_table_of_contents(self):
+        """ Generates HTML table of contents from current state """
+        metadata = {
+            'date': datetime.today().isoformat(),
+            'category': self.name
+        }
+        template = os.path.join(
+            settings.TEMPLATE_FOLDER,
+            settings.CATEGORY_HTML_TEMPLATE
+        )
+        toc = BeautifulSoup(open(template, "r+"))
+        for tag in toc.findAll(['title', 'h1', 'h2']):
+            tag.string = (tag.string % metadata)
+        for article in self.articles:
+            listitem_tag = toc.new_tag("li")
+            anchor_tag = toc.new_tag("a", href=article.path)
+            anchor_tag.string = article.title
+            listitem_tag.append(anchor_tag)
+            toc.find('ul').append(listitem_tag)
+        with open(self.toc_path, "w+") as toc_file:
+            toc_file.write(toc.prettify())
+        return toc
+
+
 def with_logging(logged):
     """
     Enables logging on the instrumented function
@@ -134,13 +172,12 @@ def save_images(category, article_data):
 
 def get_articles(category):
     """
-    Gets articles for all categories and return them for processing
+    Gets articles for categories and return them for processing
 
-    category -- Category ID
+    category -- Category instance
     """
     log.info("Fetching %s article list...", category)
-    feed_url = settings.RSS_TEMPLATE % category
-    feed = parser.from_url(feed_url)
+    feed = parser.from_url(category.feed_url)
     articles = [parse_token(article.id) for article in feed.entries]
     log.info("(%d articles)", len(articles))
     return articles
@@ -184,78 +221,34 @@ def save_article(category, article):
     """
     Saves an article's print view data to a category folder
 
-    category -- The category folder for this article
+    category -- The category instance for this article
     article -- The article token
     """
     article_url = settings.PRINT_TEMPLATE % article
     log.info("Downloading %s", article_url)
     response = requests.get(article_url)
     article_data = BeautifulSoup(response.content)
-    article_path = os.path.join(category, "%s.html" % article)
+    article_path = os.path.join(category.folder_path, "%s.html" % article)
     with open(article_path, "wb") as local_copy:
-        article_data = save_images(category, article_data)
+        article_data = save_images(category.folder_path, article_data)
         remove_tags(article_data)
         set_content_type(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
     return Article(article_data, article_path)
 
 
-def save_category(work_folder, category):
+def save_category(category):
     """
-    Retrieves a news category, saves the contents to disk and returns the
-    path to its table of contents file
+    Retrieves a news category and its articles, generates a table of contents
+    and returns the modified category instance.
 
-    work_folder -- The working directory where category data should be
-                   saved during processing
-    category -- The news category to retrieve
+    category -- The news category to operate on
     """
-    cat_folder = os.path.join(work_folder, category)
-    os.makedirs(cat_folder)
-    toc = new_category_toc_from_template(category)
+    os.makedirs(category.folder_path)
     for article in get_articles(category):
-        article = save_article(cat_folder, article)
-        append_article_to_category_toc(toc, article)
-        log.info("%s (%s)", article.title, article.path)
-    toc_path = os.path.join(work_folder, "%s.html" % category)
-    with open(toc_path, "w+") as toc_file:
-        toc_file.write(toc.prettify().encode('utf-8'))
-    return toc_path
-
-
-def new_category_toc_from_template(category):
-    """
-    Generates a table of contents template document for a category,
-    which can be populated as articles are downloaded
-
-    category -- The category name
-    """
-    metadata = {
-        'date': datetime.today().isoformat(),
-        'category': category
-    }
-    category_toc_template = os.path.join(
-        settings.TEMPLATE_FOLDER,
-        settings.CATEGORY_HTML_TEMPLATE
-    )
-    toc = BeautifulSoup(open(category_toc_template, "r+"))
-    for tag in toc.findAll(['title', 'h1', 'h2']):
-        tag.string = (tag.string % metadata)
-    return toc
-
-
-def append_article_to_category_toc(toc_soup, article):
-    """
-    Appends an article entry to the category table of contents
-
-    toc_soup -- bs4 table of contents data for category
-    article -- Article instance
-    """
-    listitem_tag = toc_soup.new_tag("li")
-    anchor_tag = toc_soup.new_tag("a", href=article.path)
-    anchor_tag.string = article.title
-    listitem_tag.append(anchor_tag)
-    toc_soup.find('ul').append(listitem_tag)
-    return toc_soup
+        category.articles.append(save_article(category, article))
+    category.save_table_of_contents()
+    return category
 
 
 @with_logging
@@ -265,10 +258,10 @@ def main():
     shutil.copytree(
         settings.TEMPLATE_FOLDER,
         settings.OUTPUT_FOLDER,
-        ignore=lambda x, y: ["_cat_toc.html"],
+        ignore=lambda x, y: ["_cat_toc.html", "index.html"],
     )
-    for category in settings.RSS_CATEGORIES:
-        save_category(settings.OUTPUT_FOLDER, category)
+    for category in [Category(c) for c in settings.RSS_CATEGORIES]:
+        save_category(category)
     log.info("Done!")
 
 if __name__ == "__main__":

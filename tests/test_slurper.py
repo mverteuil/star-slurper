@@ -73,7 +73,9 @@ class TestSlurper(unittest.TestCase):
         mock_save_article = mock.Mock(name="save_article")
         mock_save_article.return_value = slurper.Article(self.soup, None)
         globalsub.subs(slurper.save_article, mock_save_article)
-        cat_folder = slurper.save_category(self.work_folder, "derp")
+        cat_folder = slurper.save_category(
+            slurper.Category("derp")
+        )
         assert cat_folder
         assert mock_get_articles.call_count == 1
         assert mock_save_article.call_count == 1
@@ -92,7 +94,7 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        articles = slurper.get_articles("derp")
+        articles = slurper.get_articles(slurper.Category("derp"))
         assert len(articles) == len(ENTRY_SAMPLE)
 
     @with_work_folder
@@ -106,7 +108,9 @@ class TestSlurper(unittest.TestCase):
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
         globalsub.subs(slurper.save_images, mock_save_images)
-        article = slurper.save_article(self.work_folder, TOKEN_SAMPLE)
+        category = slurper.Category('derp')
+        category.folder_path = self.work_folder
+        article = slurper.save_article(category, TOKEN_SAMPLE)
         assert article.title == self.soup.findAll('h1')[0].text
         assert article.date == slurper.parse_date(self.soup)
         saved_data = open(article.path, "r+").read()
@@ -151,20 +155,17 @@ class TestSlurper(unittest.TestCase):
         sources = [img['src'] for img in result.findAll('img')]
         assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in sources
 
-    def test_new_category_toc_from_template(self):
+    def test_save_table_of_contents(self):
         """ Generates a category TOC document from the template """
-        template = slurper.new_category_toc_from_template("derp")
-        assert "derp" in template.findAll("title")[0].text
-        assert "derp" in template.findAll("h2")[0].text
-        assert date.today().isoformat() in template.findAll("title")[0].text
-        assert date.today().isoformat() in template.findAll("h1")[0].text
-
-    def test_append_article_to_category_toc(self):
-        """ Appends an article to category table of contents """
-        toc_soup = bs4.BeautifulSoup(CATEGORY_TOC_SAMPLE)
-        article = slurper.Article(self.soup, "/path/to/article.html")
-        slurper.append_article_to_category_toc(toc_soup, article)
-        assert len(toc_soup.findAll("li")) == 1
+        category = slurper.Category("derp")
+        article = slurper.Article(self.soup, path="/path/to/article.html")
+        category.articles = [article]
+        toc = category.save_table_of_contents()
+        assert "derp" in toc.findAll("title")[0].text
+        assert "derp" in toc.findAll("h2")[0].text
+        assert date.today().isoformat() in toc.findAll("title")[0].text
+        assert date.today().isoformat() in toc.findAll("h1")[0].text
+        assert len(toc.findAll("li")) == 1
 
     def test_main_happy_path(self):
         """ Runs through when everything behaves as it should """
