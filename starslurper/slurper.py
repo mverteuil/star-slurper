@@ -40,6 +40,9 @@ class Article(object):
             self.date = parse_date(article_soup)
         self.path = path
 
+    def __str__(self):
+        return self.title
+
 
 class Category(object):
     """ News category. Categories contain a set of Articles """
@@ -54,6 +57,9 @@ class Category(object):
         self.toc_path = os.path.join(settings.OUTPUT_FOLDER, "%s.html" % name)
         self.folder_path = os.path.join(settings.OUTPUT_FOLDER, name)
         self.feed_url = settings.RSS_TEMPLATE % name
+
+    def __str__(self):
+        return self.name
 
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
@@ -75,7 +81,7 @@ class Category(object):
             listitem_tag.append(anchor_tag)
             toc.find('ul').append(listitem_tag)
         with open(self.toc_path, "w+") as toc_file:
-            toc_file.write(toc.prettify())
+            toc_file.write(toc.prettify().encode('utf-8'))
         return toc
 
 
