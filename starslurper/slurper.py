@@ -215,11 +215,46 @@ def save_category(work_folder, category):
     return cat_folder
 
 
+def new_category_toc_from_template(category):
+    """
+    Generates a table of contents template document for a category,
+    which can be populated as articles are downloaded
+
+    category -- The category name
+    """
+    metadata = {
+        'date': datetime.today().isoformat(),
+        'category': category
+    }
+    category_toc_template = os.path.join(
+        settings.TEMPLATE_FOLDER,
+        settings.CATEGORY_HTML_TEMPLATE
+    )
+    toc = BeautifulSoup(open(category_toc_template, "r+"))
+    for tag in toc.findAll(['title', 'h1', 'h2']):
+        tag.string = (tag.string % metadata)
+    return toc
+
+
+def append_article_to_category_toc(toc_soup, article):
+    """
+    Appends an article entry to the category table of contents
+
+    toc_soup -- bs4 table of contents data for category
+    article -- Article instance
+    """
+    pass
+
+
 @with_logging
 def main():
     if os.path.exists(settings.OUTPUT_FOLDER):
         shutil.rmtree(settings.OUTPUT_FOLDER)
-    shutil.copytree(settings.TEMPLATE_FOLDER, settings.OUTPUT_FOLDER)
+    shutil.copytree(
+        settings.TEMPLATE_FOLDER,
+        settings.OUTPUT_FOLDER,
+        ignore=lambda x, y: ["_cat_toc.html"],
+    )
     for category in settings.RSS_CATEGORIES:
         save_category(settings.OUTPUT_FOLDER, category)
     log.info("Done!")

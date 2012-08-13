@@ -150,10 +150,20 @@ class TestSlurper(unittest.TestCase):
         sources = [img['src'] for img in result.findAll('img')]
         assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in sources
 
+    def test_new_category_toc_from_template(self):
+        """ Generates a category TOC document from the template """
+        template = slurper.new_category_toc_from_template("derp")
+        assert "derp" in template.findAll("title")[0].text
+        assert "derp" in template.findAll("h2")[0].text
+        assert date.today().isoformat() in template.findAll("title")[0].text
+        assert date.today().isoformat() in template.findAll("h1")[0].text
+
+    def test_append_article_to_category_toc(self):
+        """ Appends an article to category table of contents """
+        pass
+
     def test_main_happy_path(self):
-        """
-        Runs through when everything behaves as it should
-        """
+        """ Runs through when everything behaves as it should """
         mock_get_articles = mock.Mock(name="get_articles")
         mock_get_articles.return_value = [('news', [ARTICLE_URL_SAMPLE],)]
         globalsub.subs(slurper.get_articles, mock_get_articles)
