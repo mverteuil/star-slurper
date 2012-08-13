@@ -22,26 +22,86 @@ log = logging.getLogger(__name__)
 token_matcher = re.compile(r"/(\d+)--")
 
 
-class Article(object):
+class DownloadedArticle(object):
     """ Contains article metadata and file path """
+    category = None
+    token = None
+    article_data = None
     title = None
     date = None
     path = None
 
-    def __init__(self, article_soup, path):
-        """
-        Parses the soup for article metadata and sets the path
+    def __init__(self, category, token, article_soup):
+        self.category = category
+        self.token = token
+        self.article_data = article_soup
+        self.title = article_soup.findAll('h1')[0].text
+        self.date = parse_date(article_soup)
+        self.path = os.path.join(
+            self.category.folder_path,
+            "%s.html" % self.token
+        )
 
-        article_soup -- bs4 article data
-        path -- path to the downloaded html
+    def clean_data(self):
+        remove_tags(self.article_data)
+        set_content_type(self.article_data)
+
+    def save_images(self):
         """
-        if article_soup:
-            self.title = article_soup.findAll('h1')[0].text
-            self.date = parse_date(article_soup)
-        self.path = path
+        Saves images for a downloaded article and replaces references in the
+        article data with local copies.
+        """
+        def add_base_if_missing(url):
+            if not url.startswith('http'):
+                return settings.BASE_URL + url
+            return url
+        for image_tag in find_article_images(self.article_data):
+            image_url = add_base_if_missing(image_tag.get('src'))
+            local_name = urlparse(image_url).path.replace("/", "_")[1:]
+            image_tag['src'] = local_name
+            local_path = os.path.join(self.category.folder_path, local_name)
+            if not os.path.exists(local_path):
+                log.info("Downloading article image: %s", local_path)
+                with open(local_path, "wb") as local_image:
+                    response = requests.get(image_url)
+                    local_image.write(response.content)
+            else:
+                log.debug("%s already exists. Skipping.", local_path)
+        return self.article_data
+
+    def save(self):
+        self.clean_data()
+        self.save_images()
+        with open(self.path, "w+") as local_copy:
+            local_copy.write(self.article_data.prettify().encode('utf-8'))
+        return self
 
     def __str__(self):
         return self.title
+
+
+class UpstreamArticle(object):
+    """ Refers to the article before its data has been downloaded """
+    token = None
+    category = None
+    path = None
+    article_data = None
+
+    def __init__(self, category, token):
+        self.category = category
+        self.token = token
+
+    def download_url(self):
+        return settings.PRINT_TEMPLATE % self.token
+
+    def download(self):
+        """
+        Downloads the article and returns the result as a DownloadedArticle
+        """
+        log.info("Downloading %s", self.download_url())
+        response = requests.get(self.download_url())
+        self.article_data = BeautifulSoup(response.content)
+        return DownloadedArticle(self.category, self.token, self.article_data)
 
 
 class Category(object):
@@ -61,14 +121,28 @@ class Category(object):
     def __str__(self):
         return self.name
 
+    def check_feed_for_new_articles(self):
+        """
+        Retrieves the list of new articles from the RSS feed
+        """
+        log.info("Fetching %s article list...", self)
+        feed = parser.from_url(self.feed_url)
+        upstream_articles = [
+            UpstreamArticle(self, parse_token(article.id))
+            for article in feed.entries
+        ]
+        return upstream_articles
+
     def save(self):
         """
         Retrieves a news category and its articles, generates a
         table of contents and returns the modified category instance.
         """
-        os.makedirs(self.folder_path)
-        for article in get_articles(self):
-            self.articles.append(save_article(self, article))
+        if not os.path.exists(self.folder_path):
+            os.makedirs(self.folder_path)
+        for upstream_article in self.check_feed_for_new_articles():
+            article = upstream_article.download()
+            self.articles.append(article.save())
         self.save_table_of_contents()
         return self
 
@@ -200,46 +274,6 @@ def find_article_images(article_data):
     return article_data.findAll("img")
 
 
-def save_images(category, article_data):
-    """
-    Saves images for a local copy of a downloaded article and replaces
-    references in the article data with local copies.
-
-    category -- The category path for the article
-    article_data -- The BeautifulSoup of a print-view article
-    """
-    def add_base_if_missing(url):
-        if not url.startswith('http'):
-            return settings.BASE_URL + url
-        return url
-    for image_tag in find_article_images(article_data):
-        image_url = add_base_if_missing(image_tag.get('src'))
-        local_name = urlparse(image_url).path.replace("/", "_")[1:]
-        image_tag['src'] = local_name
-        local_path = os.path.join(category, local_name)
-        if not os.path.exists(local_path):
-            log.info("Downloading %s to %s", image_url, local_path)
-            with open(local_path, "wb") as local_image:
-                response = requests.get(image_url)
-                local_image.write(response.content)
-        else:
-            log.debug("%s already exists. Skipping.", local_path)
-    return article_data
-
-
-def get_articles(category):
-    """
-    Gets articles for categories and return them for processing
-
-    category -- Category instance
-    """
-    log.info("Fetching %s article list...", category)
-    feed = parser.from_url(category.feed_url)
-    articles = [parse_token(article.id) for article in feed.entries]
-    log.info("(%d articles)", len(articles))
-    return articles
-
-
 def remove_tags(article_soup):
     """
     Removes unwanted tags from the document
@@ -272,26 +306,6 @@ def set_content_type(article_soup):
     meta_tag["http-equiv"] = "Content-Type"
     article_soup.find("head").append(meta_tag)
     return article_soup
-
-
-def save_article(category, article):
-    """
-    Saves an article's print view data to a category folder
-
-    category -- The category instance for this article
-    article -- The article token
-    """
-    article_url = settings.PRINT_TEMPLATE % article
-    log.info("Downloading %s", article_url)
-    response = requests.get(article_url)
-    article_data = BeautifulSoup(response.content)
-    article_path = os.path.join(category.folder_path, "%s.html" % article)
-    with open(article_path, "wb") as local_copy:
-        article_data = save_images(category.folder_path, article_data)
-        remove_tags(article_data)
-        set_content_type(article_data)
-        local_copy.write(article_data.prettify().encode('utf-8'))
-    return Article(article_data, article_path)
 
 
 @with_logging

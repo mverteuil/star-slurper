@@ -51,9 +51,6 @@ class TestSlurper(unittest.TestCase):
         super(TestSlurper, self).tearDown()
         globalsub.restore(feedreader.parser)
         globalsub.restore(requests.get)
-        globalsub.restore(slurper.get_articles)
-        globalsub.restore(slurper.save_article)
-        globalsub.restore(slurper.save_images)
         if hasattr(self, 'work_folder') and self.work_folder:
             shutil.rmtree(self.work_folder)
             self.work_folder = None
@@ -67,15 +64,17 @@ class TestSlurper(unittest.TestCase):
     def test_save_category(self):
         """ Saves a category and its articles given an ID """
         assert self.work_folder
-        mock_get_articles = mock.Mock(name="get_articles")
-        mock_get_articles.return_value = [ARTICLE_URL_SAMPLE]
-        globalsub.subs(slurper.get_articles, mock_get_articles)
-        mock_save_article = mock.Mock(name="save_article")
-        mock_save_article.return_value = slurper.Article(self.soup, None)
-        globalsub.subs(slurper.save_article, mock_save_article)
-        slurper.Category("derp").save()
-        assert mock_get_articles.call_count == 1
-        assert mock_save_article.call_count == 1
+        category = slurper.Category("derp")
+        mock_check_feed = mock.Mock(name="check_feed")
+        mock_check_feed.return_value = [
+            slurper.UpstreamArticle(category, "derp")
+        ]
+        category.check_feed_for_new_articles = mock_check_feed
+        mock_get = mock.Mock(name="requests_get")
+        mock_get.return_value = mock.Mock()
+        mock_get.return_value.content = ARTICLE_SAMPLE
+        globalsub.subs(requests.get, mock_get)
+        category.save()
 
     def test_get_articles(self):
         """
@@ -91,7 +90,8 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        articles = slurper.get_articles(slurper.Category("derp"))
+        category = slurper.Category("derp")
+        articles = category.check_feed_for_new_articles()
         assert len(articles) == len(ENTRY_SAMPLE)
 
     @with_work_folder
@@ -104,14 +104,16 @@ class TestSlurper(unittest.TestCase):
         mock_save_images = mock.Mock(name="save_images")
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
-        globalsub.subs(slurper.save_images, mock_save_images)
         category = slurper.Category('derp')
         category.folder_path = self.work_folder
-        article = slurper.save_article(category, TOKEN_SAMPLE)
+        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        article.save_images = mock_save_images
+        article.save()
         assert article.title == self.soup.findAll('h1')[0].text
         assert article.date == slurper.parse_date(self.soup)
         saved_data = open(article.path, "r+").read()
         assert saved_data
+        assert mock_save_images.call_count == 1
 
     def test_parse_date(self):
         """ Finds the date of an article and return it as python Date obj """
@@ -143,10 +145,11 @@ class TestSlurper(unittest.TestCase):
         paths
         """
         assert self.work_folder
-        result = slurper.save_images(self.work_folder, self.soup)
+        category = slurper.Category("derp")
+        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        result = article.save_images()
         # Run it again and make sure it doesn't redownload
         self.setUp()
-        slurper.save_images(self.work_folder, self.soup)
         assert result
         assert "http://i.thestar.com" not in str(result)
         sources = [img['src'] for img in result.findAll('img')]
@@ -155,7 +158,7 @@ class TestSlurper(unittest.TestCase):
     def test_save_table_of_contents(self):
         """ Generates a category TOC document from the template """
         category = slurper.Category("derp")
-        article = slurper.Article(self.soup, path="/path/to/article.html")
+        article = slurper.DownloadedArticle(category, "derp", self.soup)
         category.articles = [article]
         toc = category.save_table_of_contents()
         assert "derp" in toc.findAll("title")[0].text
@@ -163,13 +166,3 @@ class TestSlurper(unittest.TestCase):
         assert date.today().isoformat() in toc.findAll("title")[0].text
         assert date.today().isoformat() in toc.findAll("h1")[0].text
         assert len(toc.findAll("li")) == 1
-
-    def test_main_happy_path(self):
-        """ Runs through when everything behaves as it should """
-        mock_get_articles = mock.Mock(name="get_articles")
-        mock_get_articles.return_value = [('news', [ARTICLE_URL_SAMPLE],)]
-        globalsub.subs(slurper.get_articles, mock_get_articles)
-        mock_save_article = mock.Mock(name="save_article")
-        mock_save_article.return_value = slurper.Article(self.soup, None)
-        globalsub.subs(slurper.save_article, mock_save_article)
-        slurper.main()
