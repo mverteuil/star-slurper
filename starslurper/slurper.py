@@ -7,7 +7,6 @@ import logging
 import os
 import re
 import shutil
-import tempfile
 from urlparse import urlparse
 
 from bs4 import BeautifulSoup
@@ -220,11 +219,9 @@ def save_category(work_folder, category):
 def main():
     if os.path.exists(settings.OUTPUT_FOLDER):
         shutil.rmtree(settings.OUTPUT_FOLDER)
-    work_folder = tempfile.mkdtemp()
+    shutil.copytree(settings.TEMPLATE_FOLDER, settings.OUTPUT_FOLDER)
     for category in settings.RSS_CATEGORIES:
-        cat_folder = save_category(work_folder, category)
-        shutil.move(cat_folder, settings.OUTPUT_FOLDER)
-    shutil.rmtree(work_folder)
+        save_category(settings.OUTPUT_FOLDER, category)
     log.info("Done!")
 
 if __name__ == "__main__":
