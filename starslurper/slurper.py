@@ -2,6 +2,7 @@
 """
 Toronto Star News Grabber and Formatter
 """
+from datetime import datetime
 import logging
 import os
 import re
@@ -25,6 +26,7 @@ token_matcher = re.compile(r"/(\d+)--")
 class Article(object):
     """ Contains article metadata and file path """
     title = None
+    date = None
     path = None
 
     def __init__(self, article_soup, path):
@@ -35,6 +37,7 @@ class Article(object):
         path -- path to the downloaded html
         """
         self.title = article_soup.findAll('h1')[0].text
+        self.date = parse_date(article_soup)
         self.path = path
 
 
@@ -66,6 +69,20 @@ def with_logging(logged):
     wrapper.__name__ = logged.__name__
     wrapper.__doc__ = logged.__doc__
     return wrapper
+
+
+def parse_date(article_soup):
+    """
+    Gets the article date from article data and returns it as a datetime.date
+
+    article_soup -- bs4 article data
+    """
+    title_and_date = article_soup.findAll("div",
+                                          {'class': 'tdArticleMainInside'})[0]
+    date_string = title_and_date.find("span").text
+    date_string = " ".join(date_string.split(" ")[2:])
+    article_date = datetime.strptime(date_string, "%A %B %d, %Y")
+    return article_date.date()
 
 
 def parse_token(url):

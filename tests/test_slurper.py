@@ -1,3 +1,4 @@
+from datetime import date
 import json
 import unittest
 import shutil
@@ -106,8 +107,14 @@ class TestSlurper(unittest.TestCase):
         globalsub.subs(slurper.save_images, mock_save_images)
         article = slurper.save_article(self.work_folder, TOKEN_SAMPLE)
         assert article.title == self.soup.findAll('h1')[0].text
+        assert article.date == slurper.parse_date(self.soup)
         saved_data = open(article.path, "r+").read()
         assert saved_data
+
+    def test_parse_date(self):
+        """ Finds the date of an article and return it as python Date obj """
+        article_date = slurper.parse_date(self.soup)
+        assert article_date == date(year=2012, month=8, day=10)
 
     def test_remove_tags(self):
         """ Removes unwanted tags from the article """
