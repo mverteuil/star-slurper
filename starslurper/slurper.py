@@ -61,6 +61,17 @@ class Category(object):
     def __str__(self):
         return self.name
 
+    def save(self):
+        """
+        Retrieves a news category and its articles, generates a
+        table of contents and returns the modified category instance.
+        """
+        os.makedirs(self.folder_path)
+        for article in get_articles(self):
+            self.articles.append(save_article(self, article))
+        self.save_table_of_contents()
+        return self
+
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
         metadata = {
@@ -97,7 +108,7 @@ class Edition(object):
     def save(self):
         """ Saves this edition to disk """
         for category in self.categories:
-            save_category(category)
+            category.save()
 
 
 def with_logging(logged):
@@ -256,20 +267,6 @@ def save_article(category, article):
         set_content_type(article_data)
         local_copy.write(article_data.prettify().encode('utf-8'))
     return Article(article_data, article_path)
-
-
-def save_category(category):
-    """
-    Retrieves a news category and its articles, generates a table of contents
-    and returns the modified category instance.
-
-    category -- The news category to operate on
-    """
-    os.makedirs(category.folder_path)
-    for article in get_articles(category):
-        category.articles.append(save_article(category, article))
-    category.save_table_of_contents()
-    return category
 
 
 @with_logging

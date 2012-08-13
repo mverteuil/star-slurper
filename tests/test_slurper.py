@@ -73,10 +73,7 @@ class TestSlurper(unittest.TestCase):
         mock_save_article = mock.Mock(name="save_article")
         mock_save_article.return_value = slurper.Article(self.soup, None)
         globalsub.subs(slurper.save_article, mock_save_article)
-        cat_folder = slurper.save_category(
-            slurper.Category("derp")
-        )
-        assert cat_folder
+        slurper.Category("derp").save()
         assert mock_get_articles.call_count == 1
         assert mock_save_article.call_count == 1
 
