@@ -20,6 +20,7 @@ TOKEN_SAMPLE = "1239413"
 ENTRY_SAMPLE = json.loads(read_sample('sample_entries.json'))
 ARTICLE_URL_SAMPLE = ENTRY_SAMPLE[0]
 ARTICLE_SAMPLE = read_sample('sample_article.html')
+CATEGORY_TOC_SAMPLE = read_sample('sample_cat_toc.html')
 
 
 def with_work_folder(wrapped):
@@ -160,7 +161,10 @@ class TestSlurper(unittest.TestCase):
 
     def test_append_article_to_category_toc(self):
         """ Appends an article to category table of contents """
-        pass
+        toc_soup = bs4.BeautifulSoup(CATEGORY_TOC_SAMPLE)
+        article = slurper.Article(self.soup, "/path/to/article.html")
+        slurper.append_article_to_category_toc(toc_soup, article)
+        assert len(toc_soup.findAll("li")) == 1
 
     def test_main_happy_path(self):
         """ Runs through when everything behaves as it should """

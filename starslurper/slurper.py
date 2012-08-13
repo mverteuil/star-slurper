@@ -35,8 +35,9 @@ class Article(object):
         article_soup -- bs4 article data
         path -- path to the downloaded html
         """
-        self.title = article_soup.findAll('h1')[0].text
-        self.date = parse_date(article_soup)
+        if article_soup:
+            self.title = article_soup.findAll('h1')[0].text
+            self.date = parse_date(article_soup)
         self.path = path
 
 
@@ -201,7 +202,8 @@ def save_article(category, article):
 
 def save_category(work_folder, category):
     """
-    Retrieves a news category and saves the contents to disk
+    Retrieves a news category, saves the contents to disk and returns the
+    path to its table of contents file
 
     work_folder -- The working directory where category data should be
                    saved during processing
@@ -209,10 +211,15 @@ def save_category(work_folder, category):
     """
     cat_folder = os.path.join(work_folder, category)
     os.makedirs(cat_folder)
+    toc = new_category_toc_from_template(category)
     for article in get_articles(category):
         article = save_article(cat_folder, article)
+        append_article_to_category_toc(toc, article)
         log.info("%s (%s)", article.title, article.path)
-    return cat_folder
+    toc_path = os.path.join(work_folder, "%s.html" % category)
+    with open(toc_path, "w+") as toc_file:
+        toc_file.write(toc.prettify().encode('utf-8'))
+    return toc_path
 
 
 def new_category_toc_from_template(category):
@@ -243,7 +250,12 @@ def append_article_to_category_toc(toc_soup, article):
     toc_soup -- bs4 table of contents data for category
     article -- Article instance
     """
-    pass
+    listitem_tag = toc_soup.new_tag("li")
+    anchor_tag = toc_soup.new_tag("a", href=article.path)
+    anchor_tag.string = article.title
+    listitem_tag.append(anchor_tag)
+    toc_soup.find('ul').append(listitem_tag)
+    return toc_soup
 
 
 @with_logging
