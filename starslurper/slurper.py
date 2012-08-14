@@ -75,7 +75,7 @@ class DownloadedArticle(object):
             if not url.startswith('http'):
                 return settings.BASE_URL + url
             return url
-        for image_tag in find_article_images(self.article_data):
+        for image_tag in self.article_data.find_all('img'):
             image_url = add_base_if_missing(image_tag.get('src'))
             local_name = urlparse(image_url).path.replace("/", "_")[1:]
             image_tag['src'] = local_name
@@ -294,15 +294,6 @@ def parse_token(url):
     match = token_matcher.search(url)
     token = match.groups()[0]
     return token
-
-
-def find_article_images(article_data):
-    """
-    Finds images in a BeautifulSoup object and returns a list of tags
-
-    article_data -- The BeautifulSoup of a print-view article
-    """
-    return article_data.findAll("img")
 
 
 @with_logging
