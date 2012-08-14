@@ -122,8 +122,10 @@ class TestSlurper(unittest.TestCase):
 
     def test_remove_tags(self):
         """ Removes unwanted tags from the article """
-        result = slurper.remove_tags(self.soup)
-        assert len(result.findAll('link')) == 0
+        category = slurper.Category("derp")
+        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        article.remove_tags()
+        assert len(article.article_data.findAll('link')) == 0
         assert len(self.soup.findAll('link')) == 0
         is_not_none = lambda x: x is not None
         assert len(self.soup.findAll(attrs={'style': is_not_none})) == 0
@@ -132,8 +134,10 @@ class TestSlurper(unittest.TestCase):
 
     def test_set_content_type(self):
         """ Sets the correct encoding for the article data """
-        result = slurper.set_content_type(self.soup)
-        meta_tag = result.find('meta')
+        category = slurper.Category("derp")
+        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        article.set_content_type()
+        meta_tag = self.soup.find('meta')
         assert meta_tag
         assert meta_tag.get('http-equiv')
         assert "utf-8" in meta_tag.get('content')

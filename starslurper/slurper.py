@@ -38,9 +38,33 @@ class DownloadedArticle(object):
             "%s.html" % self.token
         )
 
+    def remove_tags(self):
+        """ Removes unwanted tags from the document """
+        def unwanted_tags():
+            """ Generates a list of unwanted tags """
+            # Remove CSS links
+            for link in self.article_data.findAll('link'):
+                yield link
+            # Remove "Back to article" anchor
+            has_back_to = lambda x: "Back to" in x.string if x else False
+            for anchor in self.article_data.findAll("a", text=has_back_to):
+                yield anchor
+        for tag in unwanted_tags():
+            tag.decompose()
+        for tag in self.article_data.findAll(True):
+            del(tag['style'])
+
+    def set_content_type(self):
+        """ Sets the correct encoding for the document """
+        meta_tag = self.article_data.new_tag("meta",
+                                             content="text/html;charset=utf-8")
+        meta_tag["http-equiv"] = "Content-Type"
+        self.article_data.find("head").append(meta_tag)
+        return self.article_data
+
     def clean_data(self):
-        remove_tags(self.article_data)
-        set_content_type(self.article_data)
+        self.remove_tags()
+        self.set_content_type()
 
     def save_images(self):
         """
@@ -279,40 +303,6 @@ def find_article_images(article_data):
     article_data -- The BeautifulSoup of a print-view article
     """
     return article_data.findAll("img")
-
-
-def remove_tags(article_soup):
-    """
-    Removes unwanted tags from the document
-
-    article_soup -- bs4 article data
-    """
-    def unwanted_tags():
-        """ Generates a list of unwanted tags """
-        # Remove CSS links
-        for link in article_soup.findAll('link'):
-            yield link
-        # Remove "Back to article" anchor
-        has_back_to = lambda x: "Back to" in x.string if x else False
-        for anchor in article_soup.findAll("a", text=has_back_to):
-            yield anchor
-    for tag in unwanted_tags():
-        tag.decompose()
-    for tag in article_soup.findAll(True):
-        del(tag['style'])
-    return article_soup
-
-
-def set_content_type(article_soup):
-    """
-    Sets the correct encoding for the document
-
-    article_soup -- bs4 article data
-    """
-    meta_tag = article_soup.new_tag("meta", content="text/html;charset=utf-8")
-    meta_tag["http-equiv"] = "Content-Type"
-    article_soup.find("head").append(meta_tag)
-    return article_soup
 
 
 @with_logging
