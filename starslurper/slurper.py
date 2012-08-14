@@ -156,7 +156,7 @@ class Category(object):
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
         metadata = {
-            'date': datetime.today().isoformat(),
+            'date': datetime.today().strftime("%Y-%m-%d"),
             'category': self.name
         }
         template = os.path.join(
@@ -197,7 +197,7 @@ class Edition(object):
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
         metadata = {
-            'date': datetime.today().isoformat(),
+            'date': datetime.today().strftime("%Y-%m-%d"),
         }
         template = os.path.join(
             settings.TEMPLATE_FOLDER,
