@@ -109,8 +109,8 @@ class TestSlurper(unittest.TestCase):
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         article.save_images = mock_save_images
         article.save()
-        assert article.title == self.soup.findAll('h1')[0].text
-        assert article.date == slurper.parse_date(self.soup)
+        assert article.get_title() == self.soup.findAll('h1')[0].text
+        assert article.get_date() == slurper.parse_date(self.soup)
         saved_data = open(article.path, "r+").read()
         assert saved_data
         assert mock_save_images.call_count == 1

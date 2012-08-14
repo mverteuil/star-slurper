@@ -27,16 +27,12 @@ class DownloadedArticle(object):
     category = None
     token = None
     article_data = None
-    title = None
-    date = None
     path = None
 
     def __init__(self, category, token, article_soup):
         self.category = category
         self.token = token
         self.article_data = article_soup
-        self.title = article_soup.findAll('h1')[0].text
-        self.date = parse_date(article_soup)
         self.path = os.path.join(
             self.category.folder_path,
             "%s.html" % self.token
@@ -69,7 +65,19 @@ class DownloadedArticle(object):
                 log.debug("%s already exists. Skipping.", local_path)
         return self.article_data
 
+    def get_title(self):
+        """ Finds the title in the article data """
+        return self.article_data.findAll('h1')[0].text
+
+    def get_date(self):
+        """ Finds the date in the article data """
+        return parse_date(self.article_data)
+
     def save(self):
+        """
+        Saves this article to its category folder with its images, cleaning up
+        unwanted tags and instrumenting with star-slurper styles
+        """
         self.clean_data()
         self.save_images()
         with open(self.path, "w+") as local_copy:
@@ -84,7 +92,6 @@ class UpstreamArticle(object):
     """ Refers to the article before its data has been downloaded """
     token = None
     category = None
-    path = None
     article_data = None
 
     def __init__(self, category, token):
@@ -162,7 +169,7 @@ class Category(object):
         for article in self.articles:
             listitem_tag = toc.new_tag("li")
             anchor_tag = toc.new_tag("a", href=article.path)
-            anchor_tag.string = article.title
+            anchor_tag.string = article.get_title()
             listitem_tag.append(anchor_tag)
             toc.find('ul').append(listitem_tag)
         with open(self.toc_path, "w+") as toc_file:
