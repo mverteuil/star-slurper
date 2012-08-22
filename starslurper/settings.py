@@ -9,6 +9,10 @@ CONFIG_PATH = os.path.join(PROJECT_FOLDER, "starslurper.conf")
 config = ConfigParser()
 config.read(CONFIG_PATH)
 
+EBOOK_CONVERT = config.get('calibre', 'ebook_convert')
+OUTPUT_FORMAT = config.get('calibre', 'output_format')
+CONVERSION_OPTIONS = config.get('calibre', 'options')
+
 # Template url used for print-view of article for easier parsing
 # than the default
 PRINT_TEMPLATE = config.get('source', 'print_template')

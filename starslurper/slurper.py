@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 from urlparse import urlparse
 
 from bs4 import BeautifulSoup
@@ -309,10 +310,30 @@ def parse_token(url):
     return token
 
 
+def convert_html_to_epub(input_file, output_file):
+    """
+    Converts the saved edition at the specified path to a compiled
+    epub document
+    """
+    log.info("%s %s %s", settings.EBOOK_CONVERT, input_file, output_file)
+    subprocess.call([
+        settings.EBOOK_CONVERT,
+        input_file,
+        output_file,
+        settings.CONVERSION_OPTIONS
+    ])
+
+
 @with_logging
 def main():
     newspaper = Edition(settings.RSS_CATEGORIES, settings.OUTPUT_FOLDER)
     newspaper.save()
+    input_file = os.path.join(newspaper.path, settings.INDEX_HTML_TEMPLATE)
+    output_file = os.path.join(
+        settings.OUTPUT_FOLDER,
+        "%s.%s" % (newspaper.date, settings.OUTPUT_FORMAT)
+    )
+    convert_html_to_epub(input_file, output_file)
     log.info("Done!")
 
 if __name__ == "__main__":
