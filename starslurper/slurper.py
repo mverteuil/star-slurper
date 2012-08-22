@@ -63,9 +63,19 @@ class DownloadedArticle(object):
         self.article_data.find("head").append(meta_tag)
         return self.article_data
 
+    def set_styles(self):
+        """ Sets the correct stylesheet for the document """
+        link_tag = self.article_data.new_tag("link",
+                                             rel="stylesheet",
+                                             href=settings.CSS_PATH,
+                                             type="text/css")
+        self.article_data.find("head").append(link_tag)
+        return self.article_data
+
     def clean_data(self):
         self.remove_tags()
         self.set_content_type()
+        self.set_styles()
 
     def save_images(self):
         """

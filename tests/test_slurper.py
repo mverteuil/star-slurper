@@ -10,6 +10,7 @@ import globalsub
 import mock
 import requests
 
+from starslurper import settings
 from starslurper import slurper
 from tests.util import read_sample
 
@@ -147,6 +148,18 @@ class TestSlurper(unittest.TestCase):
         assert meta_tag
         assert meta_tag.get('http-equiv')
         assert "utf-8" in meta_tag.get('content')
+
+    def test_set_styles(self):
+        """ Sets the correct encoding for the article data """
+        mock_category = mock.Mock()
+        mock_category.folder_path = "/tmp/"
+        article = slurper.DownloadedArticle(mock_category, "derp", self.soup)
+        article.remove_tags()
+        article.set_styles()
+        link_tag = self.soup.find('link')
+        assert link_tag
+        assert link_tag.get('href') == settings.CSS_PATH
+        assert "text/css" in link_tag.get('type')
 
     @with_work_folder
     def test_save_images(self):
