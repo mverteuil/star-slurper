@@ -143,10 +143,11 @@ class Category(object):
     feed_url = None
     articles = []
 
-    def __init__(self, name):
+    def __init__(self, edition, name):
+        self.edition = edition
         self.name = name
-        self.toc_path = os.path.join(settings.OUTPUT_FOLDER, "%s.html" % name)
-        self.folder_path = os.path.join(settings.OUTPUT_FOLDER, name)
+        self.toc_path = os.path.join(self.edition.path, "%s.html" % name)
+        self.folder_path = os.path.join(self.edition.path, name)
         self.feed_url = settings.RSS_TEMPLATE % name
 
     def __str__(self):
@@ -203,17 +204,29 @@ class Category(object):
 
 class Edition(object):
     """ Newspaper edition. Editions contain a set of categories """
-    date = datetime.today()
+    date = datetime.today().strftime("%Y-%m-%d")
     categories = []
-    toc_path = os.path.join(settings.OUTPUT_FOLDER,
-                            settings.INDEX_HTML_TEMPLATE)
+    path = None
+    toc_path = None
 
-    def __init__(self, rss_categories):
+    def __init__(self, rss_categories, base_path):
         """ Generates the current edition from a list of RSS categories """
-        self.categories = [Category(c) for c in rss_categories]
+        self.path = os.path.join(base_path, "%s/" % self.date)
+        self.toc_path = os.path.join(self.path, settings.INDEX_HTML_TEMPLATE)
+        self.categories = [Category(self, c) for c in rss_categories]
 
     def save(self):
         """ Saves this edition to disk """
+        # Copy from template folder
+        try:
+            shutil.copytree(
+                settings.TEMPLATE_FOLDER,
+                self.path,
+                ignore=lambda x, y: ["_cat_toc.html", "index.html"],
+            )
+        except OSError, err:
+            log.debug(err)
+            log.info("Path already exists, updating downloaded files...")
         for category in self.categories:
             category.save()
         self.save_table_of_contents()
@@ -221,7 +234,7 @@ class Edition(object):
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
         metadata = {
-            'date': datetime.today().strftime("%Y-%m-%d"),
+            'date': self.date
         }
         template = os.path.join(
             settings.TEMPLATE_FOLDER,
@@ -298,14 +311,7 @@ def parse_token(url):
 
 @with_logging
 def main():
-    if os.path.exists(settings.OUTPUT_FOLDER):
-        shutil.rmtree(settings.OUTPUT_FOLDER)
-    shutil.copytree(
-        settings.TEMPLATE_FOLDER,
-        settings.OUTPUT_FOLDER,
-        ignore=lambda x, y: ["_cat_toc.html", "index.html"],
-    )
-    newspaper = Edition(settings.RSS_CATEGORIES)
+    newspaper = Edition(settings.RSS_CATEGORIES, settings.OUTPUT_FOLDER)
     newspaper.save()
     log.info("Done!")
 

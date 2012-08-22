@@ -64,7 +64,8 @@ class TestSlurper(unittest.TestCase):
     def test_save_category(self):
         """ Saves a category and its articles given an ID """
         assert self.work_folder
-        category = slurper.Category("derp")
+        edition = slurper.Edition([], self.work_folder)
+        category = slurper.Category(edition, "derp")
         mock_check_feed = mock.Mock(name="check_feed")
         mock_check_feed.return_value = [
             slurper.UpstreamArticle(category, "derp")
@@ -76,6 +77,7 @@ class TestSlurper(unittest.TestCase):
         globalsub.subs(requests.get, mock_get)
         category.save()
 
+    @with_work_folder
     def test_get_articles(self):
         """
         Gets addresses for articles from RSS feed and converts
@@ -90,7 +92,8 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        category = slurper.Category("derp")
+        edition = slurper.Edition([], self.work_folder)
+        category = slurper.Category(edition, "derp")
         articles = category.check_feed_for_new_articles()
         assert len(articles) == len(ENTRY_SAMPLE)
 
@@ -104,7 +107,8 @@ class TestSlurper(unittest.TestCase):
         mock_save_images = mock.Mock(name="save_images")
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
-        category = slurper.Category('derp')
+        edition = slurper.Edition([], self.work_folder)
+        category = slurper.Category(edition, "derp")
         category.folder_path = self.work_folder
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         article.save_images = mock_save_images
@@ -122,8 +126,9 @@ class TestSlurper(unittest.TestCase):
 
     def test_remove_tags(self):
         """ Removes unwanted tags from the article """
-        category = slurper.Category("derp")
-        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        mock_category = mock.Mock()
+        mock_category.folder_path = "/tmp/"
+        article = slurper.DownloadedArticle(mock_category, "derp", self.soup)
         article.remove_tags()
         assert len(article.article_data.findAll('link')) == 0
         assert len(self.soup.findAll('link')) == 0
@@ -134,8 +139,9 @@ class TestSlurper(unittest.TestCase):
 
     def test_set_content_type(self):
         """ Sets the correct encoding for the article data """
-        category = slurper.Category("derp")
-        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        mock_category = mock.Mock()
+        mock_category.folder_path = "/tmp/"
+        article = slurper.DownloadedArticle(mock_category, "derp", self.soup)
         article.set_content_type()
         meta_tag = self.soup.find('meta')
         assert meta_tag
@@ -149,19 +155,21 @@ class TestSlurper(unittest.TestCase):
         paths
         """
         assert self.work_folder
-        category = slurper.Category("derp")
-        article = slurper.DownloadedArticle(category, "derp", self.soup)
+        mock_category = mock.Mock()
+        mock_category.folder_path = self.work_folder
+        article = slurper.DownloadedArticle(mock_category, "derp", self.soup)
         result = article.save_images()
-        # Run it again and make sure it doesn't redownload
-        self.setUp()
         assert result
         assert "http://i.thestar.com" not in str(result)
         sources = [img['src'] for img in result.findAll('img')]
         assert "images_72_fc_57efb6d944ac8f167b01c5be4b26.jpg" in sources
 
+    @with_work_folder
     def test_save_table_of_contents(self):
         """ Generates a category TOC document from the template """
-        category = slurper.Category("derp")
+        mock_edition = mock.Mock()
+        mock_edition.path = self.work_folder
+        category = slurper.Category(mock_edition, "derp")
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         category.articles = [article]
         toc = category.save_table_of_contents()
