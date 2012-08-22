@@ -325,13 +325,10 @@ def convert_html_to_epub(input_file, output_file):
     Converts the saved edition at the specified path to a compiled
     epub document
     """
-    log.info("%s %s %s", settings.EBOOK_CONVERT, input_file, output_file)
-    subprocess.call([
-        settings.EBOOK_CONVERT,
-        input_file,
-        output_file,
-        settings.CONVERSION_OPTIONS
-    ])
+    call_list = [ settings.EBOOK_CONVERT, input_file, output_file ]
+    call_list += settings.CONVERSION_OPTIONS.split(" ")
+    log.info(call_list)
+    subprocess.call(call_list)
 
 
 @with_logging
