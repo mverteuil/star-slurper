@@ -325,7 +325,7 @@ def convert_html_to_epub(input_file, output_file):
     Converts the saved edition at the specified path to a compiled
     epub document
     """
-    call_list = [ settings.EBOOK_CONVERT, input_file, output_file ]
+    call_list = [settings.EBOOK_CONVERT, input_file, output_file]
     call_list += settings.CONVERSION_OPTIONS.split(" ")
     log.info(call_list)
     subprocess.call(call_list)

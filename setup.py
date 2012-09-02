@@ -33,7 +33,7 @@ setup(
     license="GNU",
     keywords="news",
     url="http://github.com/mverteuil/star-slurper",
-    packages=['starslurper', 'tests'],
+    packages=['starslurper', 'epub', 'tests'],
     long_description=read('README.md'),
     tests_require=['pytest'],
     cmdclass={'test': PyTest},
