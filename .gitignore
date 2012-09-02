@@ -34,3 +34,4 @@ pip-log.txt
 
 # pep8 cache
 .cache
+.DS_Store
