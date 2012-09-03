@@ -322,24 +322,22 @@ class Book(object):
                 shutil.copyfile(item.src_path, path)
 
     @staticmethod
-    def __get_manifest_items(contentOPFPath):
-        tree = etree.parse(contentOPFPath)
-        return tree.xpath(
-            "//opf:manifest/opf:item/@href",
-            namespaces={'opf': 'http://www.idpf.org/2007/opf'}
-        )
-
-    @staticmethod
     def create_epub(root_dir, output_path):
+        def get_manifest_items():
+            opf_path = os.path.join(OEBPS, OPF_METADATA)
+            tree = etree.parse(opf_path)
+            return tree.xpath(
+                "//opf:manifest/opf:item/@href",
+                namespaces={'opf': 'http://www.idpf.org/2007/opf'}
+            )
+
         saved_cwd = os.getcwd()
         os.chdir(root_dir)
         with ZipFile(output_path, 'w') as epub_archive:
             for folder, file_name, _, _, _ in METADATA_FILES:
                 path = os.path.join(folder, file_name)
                 epub_archive.write(path, compress_type=ZIP_STORED)
-            opf_path = os.path.join(OEBPS, OPF_METADATA)
-            manifest_items = Book.__get_manifest_items(opf_path)
-            for file_name in manifest_items:
+            for file_name in get_manifest_items():
                 path = os.path.join(OEBPS, file_name)
                 epub_archive.write(path, compress_type=ZIP_DEFLATED)
             epub_archive.close()
