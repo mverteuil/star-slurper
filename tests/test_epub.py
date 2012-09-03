@@ -33,17 +33,17 @@ class TestBook(unittest.TestCase):
         book.add_spine_item(n2)
 
         # You can use both forms to add TOC map
-        #t1 = book.add_toc_node(n1.destPath, '1')
-        #t11 = book.add_toc_node(n11.destPath, '1.1', parent = t1)
-        #t111 = book.add_toc_node(n111.destPath, '1.1.1', parent = t11)
-        #t12 = book.add_toc_node(n12.destPath, '1.2', parent = t1)
-        #t2 = book.add_toc_node(n2.destPath, '2')
+        #t1 = book.add_toc_node(n1.dest_path, '1')
+        #t11 = book.add_toc_node(n11.dest_path, '1.1', parent = t1)
+        #t111 = book.add_toc_node(n111.dest_path, '1.1.1', parent = t11)
+        #t12 = book.add_toc_node(n12.dest_path, '1.2', parent = t1)
+        #t2 = book.add_toc_node(n2.dest_path, '2')
 
-        book.add_toc_node(n1.destPath, '1')
-        book.add_toc_node(n11.destPath, '1.1', 2)
-        book.add_toc_node(n111.destPath, '1.1.1', 3)
-        book.add_toc_node(n12.destPath, '1.2', 2)
-        book.add_toc_node(n2.destPath, '2')
+        book.add_toc_node(n1.dest_path, '1')
+        book.add_toc_node(n11.dest_path, '1.1', 2)
+        book.add_toc_node(n111.dest_path, '1.1.1', 3)
+        book.add_toc_node(n12.dest_path, '1.2', 2)
+        book.add_toc_node(n2.dest_path, '2')
 
         rootDir = r'/tmp/epubtest/'
         if os.path.exists(rootDir):

@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!--!Copyright (c) 2012, Bin TanThis file is distributed under the BSD Licence. See python-epub-builder-license.txt for details.-->
 <opf:package xmlns:opf="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:py="http://genshi.edgewall.org/" unique-identifier="bookid" version="2.0">
   <opf:metadata>
     <dc:identifier id="bookid">urn:uuid:${book.uuid}</dc:identifier>
     <dc:language>${book.lang}</dc:language>
     <dc:title>${book.title}</dc:title>
     <py:for each="name, role in book.creators">
-      <dc:creator opf:role="$role">$name</dc:creator>
+        <dc:creator opf:role="${role}">${name}</dc:creator>
     </py:for>
-    <py:for each="tag_open, content, tag_close in book.render_meta_tags()">${Markup(tag_open)}$content${Markup(tag_close)}</py:for>
+    <py:for each="tag_open, content, tag_close in book.render_meta_tags()">${Markup(tag_open)}${content}${Markup(tag_close)}</py:for>
     <opf:meta name="cover" content="${book.cover_image.key}" py:if="book.cover_image"/>
   </opf:metadata>
   <opf:manifest>
     <opf:item id="ncxtoc" media-type="application/x-dtbncx+xml" href="toc.ncx"/>
     <py:for each="item in book.get_all_items()">
-      <opf:item id="${item.key}" media-type="${item.mimeType}" href="${item.destPath}"/>
+      <opf:item id="${item.key}" media-type="${item.mimetype}" href="${item.dest_path}"/>
     </py:for>
   </opf:manifest>
   <opf:spine toc="ncxtoc">
@@ -23,8 +22,8 @@
     </py:for>
   </opf:spine>
   <opf:guide py:if="book.guide">
-    <py:for each="href, title, type in book.get_guide()">
-      <opf:reference href="$href" type="$type" title="$title"/>
+    <py:for each="href, title, reftype in book.get_guide()">
+        <opf:reference href="${href}" type="${reftype}" title="${title}"/>
     </py:for>
   </opf:guide>
 </opf:package>

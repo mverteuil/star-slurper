@@ -64,6 +64,40 @@ METADATA_FILES = [
     (OEBPS, NCX_METADATA, 'xml', "utf-8", MarkupTemplate),
 ]
 
+# A list of acceptable values for opf:role attribute of dc:creator
+# http://idpf.org/epub/20/spec/OPF_2.0.1_draft.htm#Section2.2.6
+CREATOR_ROLES = (
+    ("adp", "Adapter"),
+    ("ann", "Annotator"),
+    ("arr", "Arranger"),
+    ("art", "Artist"),
+    ("asn", "Associated name"),
+    ("aut", "Author"),
+    ("aqt", "Author in quotations or text extracts"),
+    ("aft", "Author of afterword, colophon, etc."),
+    ("aui", "Author of introduction, etc."),
+    ("ant", "Bibliographic antecedent"),
+    ("bkp", "Book producer"),
+    ("clb", "Collaborator"),
+    ("cmm", "Commentator"),
+    ("dsr", "Designer"),
+    ("edt", "Editor"),
+    ("ill", "Illustrator"),
+    ("lyr", "Lyricist"),
+    ("mdc", "Metadata contact"),
+    ("mus", "Musician"),
+    ("nrt", "Narrator"),
+    ("oth", "Other"),
+    ("pht", "Photographer"),
+    ("prt", "Printer"),
+    ("red", "Redactor"),
+    ("rev", "Reviewer"),
+    ("spn", "Sponsor"),
+    ("ths", "Thesis advisor"),
+    ("trc", "Transcriber"),
+    ("trl", "Translator")
+)
+
 
 class TableOfContentsNode(object):
     play_order = 0
@@ -93,9 +127,9 @@ class TableOfContentsNode(object):
 class ManifestItem(object):
     def __init__(self):
         self.key = ''
-        self.srcPath = ''
-        self.destPath = ''
-        self.mimeType = ''
+        self.src_path = ''
+        self.dest_path = ''
+        self.mimetype = ''
         self.html = ''
 
 
@@ -127,9 +161,22 @@ class Book(object):
         self.last_node_at_depth = {0: self.tocMapRoot}
 
     def add_creator(self, name, role='aut'):
+        """
+        Adds creator metadata
+
+        Creator metadata is written into content.opf and is utilized by
+        ereader devices for sorting and display.
+        """
+        assert role in [code for code, desc in CREATOR_ROLES]
         self.creators.append((name, role))
 
     def add_meta_info(self, name, value, **attributes):
+        """
+        Adds metadata information
+
+        Metadata information is written into content.opf and is utilized
+        by ereader devices for sorting and display.
+        """
         self.meta_info.append((name, value, attributes))
 
     def render_meta_tags(self):
@@ -153,35 +200,35 @@ class Book(object):
             ), key=lambda x: x.key
         )
 
-    def add_image(self, srcPath, destPath):
+    def add_image(self, src_path, dest_path):
         item = ManifestItem()
         item.key = 'image_%d' % (len(self.images) + 1)
-        item.srcPath = srcPath
-        item.destPath = destPath
-        item.mimeType = mimetypes.guess_type(destPath)[0]
-        assert item.destPath not in self.images
-        self.images[destPath] = item
+        item.src_path = src_path
+        item.dest_path = dest_path
+        item.mimetype = mimetypes.guess_type(dest_path)[0]
+        assert item.dest_path not in self.images
+        self.images[dest_path] = item
         return item
 
-    def add_html(self, srcPath, destPath, html):
+    def add_html(self, src_path, dest_path, html):
         item = ManifestItem()
         item.key = 'html_%d' % (len(self.html_docs) + 1)
-        item.srcPath = srcPath
-        item.destPath = destPath
+        item.src_path = src_path
+        item.dest_path = dest_path
         item.html = html
-        item.mimeType = 'application/xhtml+xml'
-        assert item.destPath not in self.html_docs
-        self.html_docs[item.destPath] = item
+        item.mimetype = 'application/xhtml+xml'
+        assert item.dest_path not in self.html_docs
+        self.html_docs[item.dest_path] = item
         return item
 
-    def add_css(self, srcPath, destPath):
+    def add_css(self, src_path, dest_path):
         item = ManifestItem()
         item.key = 'css_%d' % (len(self.css_docs) + 1)
-        item.srcPath = srcPath
-        item.destPath = destPath
-        item.mimeType = 'text/css'
-        assert item.destPath not in self.css_docs
-        self.css_docs[item.destPath] = item
+        item.src_path = src_path
+        item.dest_path = dest_path
+        item.mimetype = 'text/css'
+        assert item.dest_path not in self.css_docs
+        self.css_docs[item.dest_path] = item
         return item
 
     def __render_title_page(self):
@@ -198,7 +245,7 @@ class Book(object):
         assert not self.cover_page
         self.cover_page = self.add_html('', 'title-page.html', html)
         self.add_spine_item(self.cover_page, True, -200)
-        self.set_guide_item(G_TITLE, "Title Page", "title-page.html")
+        self.add_guide_reference(G_TITLE, "Title Page", "title-page.html")
 
     def __render_table_of_contents(self):
         assert self.toc_page
@@ -212,13 +259,13 @@ class Book(object):
         assert not self.toc_page
         self.toc_page = self.add_html('', 'toc.html', '')
         self.add_spine_item(self.toc_page, False, -100)
-        self.set_guide_item(G_TOC, "Table of Contents", "toc.html")
+        self.add_guide_reference(G_TOC, "Table of Contents", "toc.html")
 
     def get_spine(self):
         return sorted(self.spine)
 
     def add_spine_item(self, item, linear=True, order=None):
-        assert item.destPath in self.html_docs
+        assert item.dest_path in self.html_docs
         if order is None:
             order = (max(order for order, _, _ in self.spine)
                      if self.spine else 0) + 1
@@ -227,8 +274,8 @@ class Book(object):
     def get_guide(self):
         return sorted(self.guide.values(), key=lambda x: x[2])
 
-    def set_guide_item(self, i_type, title, href):
-        self.guide[i_type] = (href, title, i_type)
+    def add_guide_reference(self, reftype, title, href):
+        self.guide[reftype] = (href, title, reftype)
 
     def get_toc_map_height(self):
         return max(self.last_node_at_depth.keys())
@@ -260,15 +307,15 @@ class Book(object):
 
     def __write_book_data(self):
         for item in self.get_all_items():
-            print item.key, item.destPath
-            path = os.path.join(self.rootDir, 'OEBPS', item.destPath)
+            print item.key, item.dest_path
+            path = os.path.join(self.rootDir, 'OEBPS', item.dest_path)
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
             if item.html:
                 with open(path, 'w') as fout:
                     fout.write(item.html)
             else:
-                shutil.copyfile(item.srcPath, path)
+                shutil.copyfile(item.src_path, path)
 
     @staticmethod
     def __get_manifest_items(contentOPFPath):
