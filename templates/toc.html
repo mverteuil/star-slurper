@@ -12,6 +12,6 @@
       </div>
       <py:for each="child in node.children">${tocEntry(child)}</py:for>
     </py:def>
-    <py:for each="child in book.getTocMapRoot().children">${tocEntry(child)}</py:for>
+    <py:for each="child in book.tocMapRoot.children">${tocEntry(child)}</py:for>
   </body>
 </html>

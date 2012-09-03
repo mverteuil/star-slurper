@@ -8,7 +8,7 @@
     <py:for each="name, role in book.creators">
       <dc:creator opf:role="$role">$name</dc:creator>
     </py:for>
-    <py:for each="beginTag, content, endTag in book.getMetaTags()">${Markup(beginTag)}$content${Markup(endTag)}</py:for>
+    <py:for each="tag_open, content, tag_close in book.render_meta_tags()">${Markup(tag_open)}$content${Markup(tag_close)}</py:for>
     <opf:meta name="cover" content="${book.cover_image.id}" py:if="book.cover_image"/>
   </opf:metadata>
   <opf:manifest>
@@ -18,12 +18,12 @@
     </py:for>
   </opf:manifest>
   <opf:spine toc="ncxtoc">
-    <py:for each="_, item, linear in book.getSpine()">
+    <py:for each="_, item, linear in book.get_spine()">
       <opf:itemref idref="${item.id}" linear="${'yes' if linear else 'no'}"/>
     </py:for>
   </opf:spine>
   <opf:guide py:if="book.guide">
-    <py:for each="href, title, type in book.getGuide()">
+    <py:for each="href, title, type in book.get_guide()">
       <opf:reference href="$href" type="$type" title="$title"/>
     </py:for>
   </opf:guide>

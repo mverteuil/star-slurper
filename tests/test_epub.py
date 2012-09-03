@@ -33,21 +33,21 @@ class TestBook(unittest.TestCase):
         book.add_spine_item(n2)
 
         # You can use both forms to add TOC map
-        #t1 = book.addTocMapNode(n1.destPath, '1')
-        #t11 = book.addTocMapNode(n11.destPath, '1.1', parent = t1)
-        #t111 = book.addTocMapNode(n111.destPath, '1.1.1', parent = t11)
-        #t12 = book.addTocMapNode(n12.destPath, '1.2', parent = t1)
-        #t2 = book.addTocMapNode(n2.destPath, '2')
+        #t1 = book.add_toc_node(n1.destPath, '1')
+        #t11 = book.add_toc_node(n11.destPath, '1.1', parent = t1)
+        #t111 = book.add_toc_node(n111.destPath, '1.1.1', parent = t11)
+        #t12 = book.add_toc_node(n12.destPath, '1.2', parent = t1)
+        #t2 = book.add_toc_node(n2.destPath, '2')
 
-        book.addTocMapNode(n1.destPath, '1')
-        book.addTocMapNode(n11.destPath, '1.1', 2)
-        book.addTocMapNode(n111.destPath, '1.1.1', 3)
-        book.addTocMapNode(n12.destPath, '1.2', 2)
-        book.addTocMapNode(n2.destPath, '2')
+        book.add_toc_node(n1.destPath, '1')
+        book.add_toc_node(n11.destPath, '1.1', 2)
+        book.add_toc_node(n111.destPath, '1.1.1', 3)
+        book.add_toc_node(n12.destPath, '1.2', 2)
+        book.add_toc_node(n2.destPath, '2')
 
         rootDir = r'/tmp/epubtest/'
         if os.path.exists(rootDir):
             shutil.rmtree(rootDir)
-        book.createBook(rootDir)
-        Book.createArchive(rootDir, rootDir + '.epub')
-        Book.checkEpub('../epubcheck-1.1.jar', rootDir + '.epub')
+        book.raw_publish(rootDir)
+        Book.create_epub(rootDir, rootDir + '.epub')
+        Book.validate_epub('../epubcheck-1.1.jar', rootDir + '.epub')

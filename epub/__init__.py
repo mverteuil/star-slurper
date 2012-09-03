@@ -26,27 +26,31 @@ G_TITLE = "title-page"
 G_TOC = "toc"
 
 
-class TocMapNode:
+class TableOfContentsNode(object):
+    play_order = 0
+    title = None
+    href = None
+    children = None
+    depth = 0
 
     def __init__(self):
-        self.playOrder = 0
-        self.title = ''
-        self.href = ''
+        self.title = ""
+        self.href = ""
         self.children = []
         self.depth = 0
 
-    def assignPlayOrder(self):
-        nextPlayOrder = [0]
-        self.__assignPlayOrder(nextPlayOrder)
+    def update_play_order(self):
+        next_play_order = [0]
+        self.__update_play_order(next_play_order)
 
-    def __assignPlayOrder(self, nextPlayOrder):
-        self.playOrder = nextPlayOrder[0]
-        nextPlayOrder[0] = self.playOrder + 1
+    def __update_play_order(self, next_play_order):
+        self.play_order = next_play_order[0]
+        next_play_order[0] = self.play_order + 1
         for child in self.children:
-            child.__assignPlayOrder(nextPlayOrder)
+            child.__update_play_order(next_play_order)
 
 
-class EpubItem:
+class EpubItem(object):
 
     def __init__(self):
         self.id = ''
@@ -56,7 +60,7 @@ class EpubItem:
         self.html = ''
 
 
-class Book:
+class Book(object):
     """ Produces epub archives from model contents """
     loader = TemplateLoader("templates")
     lang = "en-US"
@@ -80,8 +84,8 @@ class Book:
         self.uuid = uuid.uuid1()
         self.rootDir = ""
 
-        self.tocMapRoot = TocMapNode()
-        self.lastNodeAtDepth = {0: self.tocMapRoot}
+        self.tocMapRoot = TableOfContentsNode()
+        self.last_node_at_depth = {0: self.tocMapRoot}
 
     def add_creator(self, name, role='aut'):
         self.creators.append((name, role))
@@ -89,7 +93,7 @@ class Book:
     def add_meta_info(self, name, value, **attributes):
         self.meta_info.append((name, value, attributes))
 
-    def getMetaTags(self):
+    def render_meta_tags(self):
         l = []
         for name, value, attribute in self.meta_info:
             tag_open = '<dc:%s' % name
@@ -171,7 +175,7 @@ class Book:
         self.add_spine_item(self.toc_page, False, -100)
         self.set_guide_item(G_TOC, "Table of Contents", "toc.html")
 
-    def getSpine(self):
+    def get_spine(self):
         return sorted(self.spine)
 
     def add_spine_item(self, item, linear=True, order=None):
@@ -181,33 +185,30 @@ class Book:
                      if self.spine else 0) + 1
         self.spine.append((order, item, linear))
 
-    def getGuide(self):
+    def get_guide(self):
         return sorted(self.guide.values(), key=lambda x: x[2])
 
     def set_guide_item(self, i_type, title, href):
         self.guide[i_type] = (href, title, i_type)
 
-    def getTocMapRoot(self):
-        return self.tocMapRoot
+    def get_toc_map_height(self):
+        return max(self.last_node_at_depth.keys())
 
-    def getTocMapHeight(self):
-        return max(self.lastNodeAtDepth.keys())
-
-    def addTocMapNode(self, href, title, depth=None, parent=None):
-        node = TocMapNode()
+    def add_toc_node(self, href, title, depth=None, parent=None):
+        node = TableOfContentsNode()
         node.href = href
         node.title = title
         if parent is None:
             if depth is None:
                 parent = self.tocMapRoot
             else:
-                parent = self.lastNodeAtDepth[depth - 1]
+                parent = self.last_node_at_depth[depth - 1]
         parent.children.append(node)
         node.depth = parent.depth + 1
-        self.lastNodeAtDepth[node.depth] = node
+        self.last_node_at_depth[node.depth] = node
         return node
 
-    def makeDirs(self):
+    def __write_folders(self):
         try:
             os.makedirs(os.path.join(self.rootDir, 'META-INF'))
         except OSError:
@@ -217,29 +218,29 @@ class Book:
         except OSError:
             pass
 
-    def __writeContainerXML(self):
+    def __write_container_xml(self):
         path = os.path.join(self.rootDir, 'META-INF', 'container.xml')
         with open(path, 'w') as fout:
             tmpl = self.loader.load('container.xml')
             stream = tmpl.generate()
             fout.write(stream.render('xml'))
 
-    def __writeTocNCX(self):
-        self.tocMapRoot.assignPlayOrder()
+    def __write_toc_ncx(self):
+        self.tocMapRoot.update_play_order()
         path = os.path.join(self.rootDir, 'OEBPS', 'toc.ncx')
         with open(path, 'w') as fout:
             tmpl = self.loader.load('toc.ncx')
             stream = tmpl.generate(book=self)
             fout.write(stream.render('xml'))
 
-    def __writeContentOPF(self):
+    def __write_content_opf(self):
         path = os.path.join(self.rootDir, 'OEBPS', 'content.opf')
         with open(path, 'w') as fout:
             tmpl = self.loader.load('content.opf')
             stream = tmpl.generate(book=self)
             fout.write(stream.render('xml'))
 
-    def __writeItems(self):
+    def __write_book_data(self):
         for item in self.get_all_items():
             print item.id, item.destPath
             path = os.path.join(self.rootDir, 'OEBPS', item.destPath)
@@ -249,13 +250,13 @@ class Book:
             else:
                 shutil.copyfile(item.srcPath, path)
 
-    def __writeMimeType(self):
+    def __write_mimetype(self):
         fout = open(os.path.join(self.rootDir, 'mimetype'), 'w')
         fout.write('application/epub+zip')
         fout.close()
 
     @staticmethod
-    def __listManifestItems(contentOPFPath):
+    def __get_manifest_items(contentOPFPath):
         tree = etree.parse(contentOPFPath)
         return tree.xpath(
             "//opf:manifest/opf:item/@href",
@@ -263,7 +264,7 @@ class Book:
         )
 
     @staticmethod
-    def createArchive(rootDir, outputPath):
+    def create_epub(rootDir, outputPath):
         fout = zipfile.ZipFile(outputPath, 'w')
         cwd = os.getcwd()
         os.chdir(rootDir)
@@ -272,7 +273,7 @@ class Book:
         fileList.append(os.path.join('META-INF', 'container.xml'))
         fileList.append(os.path.join('OEBPS', 'content.opf'))
         content_opf = os.path.join('OEBPS', 'content.opf')
-        manifest_items = Book.__listManifestItems(content_opf)
+        manifest_items = Book.__get_manifest_items(content_opf)
         for itemPath in manifest_items:
             fileList.append(os.path.join('OEBPS', itemPath))
         for filePath in fileList:
@@ -281,18 +282,18 @@ class Book:
         os.chdir(cwd)
 
     @staticmethod
-    def checkEpub(checkerPath, epubPath):
+    def validate_epub(checkerPath, epubPath):
         subprocess.call(['java', '-jar', checkerPath, epubPath], shell=True)
 
-    def createBook(self, rootDir):
+    def raw_publish(self, rootDir):
         if self.cover_page:
             self.__render_title_page()
         if self.toc_page:
             self.__render_table_of_contents()
         self.rootDir = rootDir
-        self.makeDirs()
-        self.__writeMimeType()
-        self.__writeItems()
-        self.__writeContainerXML()
-        self.__writeContentOPF()
-        self.__writeTocNCX()
+        self.__write_folders()
+        self.__write_mimetype()
+        self.__write_book_data()
+        self.__write_container_xml()
+        self.__write_content_opf()
+        self.__write_toc_ncx()
