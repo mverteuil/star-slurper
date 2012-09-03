@@ -49,5 +49,6 @@ class TestBook(unittest.TestCase):
         if os.path.exists(rootDir):
             shutil.rmtree(rootDir)
         book.raw_publish(rootDir)
-        Book.create_epub(rootDir, rootDir + '.epub')
-        Book.validate_epub('../epubcheck-1.1.jar', rootDir + '.epub')
+        Book.create_epub(rootDir, "%s.epub" % os.path.dirname(rootDir))
+        Book.validate_epub('../epubcheck-1.1.jar', "%s.epub" %
+                           os.path.dirname(rootDir))
