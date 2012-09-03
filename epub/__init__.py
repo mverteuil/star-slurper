@@ -19,7 +19,10 @@ import shutil
 import subprocess
 import uuid
 import zipfile
+
 from genshi.template import TemplateLoader
+from genshi.template import NewTextTemplate
+from genshi.template import MarkupTemplate
 from lxml import etree
 
 
@@ -27,6 +30,13 @@ from lxml import etree
 G_COVER = "cover"
 G_TITLE = "title-page"
 G_TOC = "toc"
+
+METADATA_FILES = [
+    ('META-INF', 'container.xml', 'xml', MarkupTemplate),
+    ('OEBPS', 'toc.ncx', 'xml', MarkupTemplate),
+    ('OEBPS', 'content.opf', 'xml', MarkupTemplate),
+    ('.', 'mimetype', 'text', NewTextTemplate),
+]
 
 
 class TableOfContentsNode(object):
@@ -69,6 +79,7 @@ class Book(object):
     uuid = None
     title = ""
     creators = []
+    mime_type = "application/epub+zip"
 
     meta_info = []
     images = {}
@@ -210,43 +221,27 @@ class Book(object):
         self.last_node_at_depth[node.depth] = node
         return node
 
-    def __write_folders(self):
-        try:
-            os.makedirs(os.path.join(self.rootDir, 'META-INF'))
-        except OSError:
-            pass
-        try:
-            os.makedirs(os.path.join(self.rootDir, 'OEBPS'))
-        except OSError:
-            pass
-
     def __write_metadata_files(self):
-        metadata_files = [
-            ('META-INF', 'container.xml', {}, ),
-            ('OEBPS', 'toc.ncx', {'book': self}, ),
-            ('OEBPS', 'content.opf', {'book': self}, ),
-        ]
-        for folder, file_name, template_args in metadata_files:
+        for folder, file_name, file_type, loader in METADATA_FILES:
             path = os.path.join(self.rootDir, folder, file_name)
+            if not os.path.exists(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
             with open(path, 'w') as target_file:
-                template = self.loader.load(file_name)
-                stream = template.generate(**template_args)
-                target_file.write(stream.render('xml'))
+                template = self.loader.load(file_name, cls=loader)
+                stream = template.generate(book=self)
+                target_file.write(stream.render(file_type))
 
     def __write_book_data(self):
         for item in self.get_all_items():
             print item.key, item.destPath
             path = os.path.join(self.rootDir, 'OEBPS', item.destPath)
+            if not os.path.exists(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
             if item.html:
                 with open(path, 'w') as fout:
                     fout.write(item.html)
             else:
                 shutil.copyfile(item.srcPath, path)
-
-    def __write_mimetype(self):
-        fout = open(os.path.join(self.rootDir, 'mimetype'), 'w')
-        fout.write('application/epub+zip')
-        fout.close()
 
     @staticmethod
     def __get_manifest_items(contentOPFPath):
@@ -257,22 +252,23 @@ class Book(object):
         )
 
     @staticmethod
-    def create_epub(rootDir, outputPath):
-        fout = zipfile.ZipFile(outputPath, 'w')
-        cwd = os.getcwd()
-        os.chdir(rootDir)
-        fout.write('mimetype', compress_type=zipfile.ZIP_STORED)
-        fileList = []
-        fileList.append(os.path.join('META-INF', 'container.xml'))
-        fileList.append(os.path.join('OEBPS', 'content.opf'))
-        content_opf = os.path.join('OEBPS', 'content.opf')
-        manifest_items = Book.__get_manifest_items(content_opf)
-        for itemPath in manifest_items:
-            fileList.append(os.path.join('OEBPS', itemPath))
-        for filePath in fileList:
-            fout.write(filePath, compress_type=zipfile.ZIP_DEFLATED)
-        fout.close()
-        os.chdir(cwd)
+    def create_epub(root_dir, output_path):
+        saved_cwd = os.getcwd()
+        os.chdir(root_dir)
+        with zipfile.ZipFile(output_path, 'w') as epub_archive:
+            epub_archive.write('mimetype', compress_type=zipfile.ZIP_STORED)
+            files = []
+            files.append(os.path.join('META-INF', 'container.xml'))
+            files.append(os.path.join('OEBPS', 'content.opf'))
+            content_opf = os.path.join('OEBPS', 'content.opf')
+            manifest_items = Book.__get_manifest_items(content_opf)
+            for item_path in manifest_items:
+                files.append(os.path.join('OEBPS', item_path))
+            for file_path in files:
+                epub_archive.write(file_path,
+                                   compress_type=zipfile.ZIP_DEFLATED)
+            epub_archive.close()
+        os.chdir(saved_cwd)
 
     @staticmethod
     def validate_epub(checkerPath, epubPath):
@@ -284,7 +280,5 @@ class Book(object):
         if self.toc_page:
             self.__render_table_of_contents()
         self.rootDir = rootDir
-        self.__write_folders()
-        self.__write_mimetype()
         self.__write_book_data()
         self.__write_metadata_files()
