@@ -8,6 +8,9 @@
 
 Original developed by Bin Tan (http://code.google.com/p/python-epub-builder/)
 With modifications by Matthew de Verteuil
+    * Pythonic names (vs Java-eque original)
+    * Removed some helper functions that I didn't deem necessary
+    * Renamed several methods to better represent their actions
 """
 import itertools
 import mimetypes
