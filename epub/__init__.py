@@ -53,10 +53,9 @@ class TableOfContentsNode(object):
             child.__update_play_order(next_play_order)
 
 
-class EpubItem(object):
-
+class ManifestItem(object):
     def __init__(self):
-        self.id = ''
+        self.key = ''
         self.srcPath = ''
         self.destPath = ''
         self.mimeType = ''
@@ -114,12 +113,12 @@ class Book(object):
                 self.images.values(),
                 self.html_docs.values(),
                 self.css_docs.values()
-            ), key=lambda x: x.id
+            ), key=lambda x: x.key
         )
 
     def add_image(self, srcPath, destPath):
-        item = EpubItem()
-        item.id = 'image_%d' % (len(self.images) + 1)
+        item = ManifestItem()
+        item.key = 'image_%d' % (len(self.images) + 1)
         item.srcPath = srcPath
         item.destPath = destPath
         item.mimeType = mimetypes.guess_type(destPath)[0]
@@ -128,8 +127,8 @@ class Book(object):
         return item
 
     def add_html(self, srcPath, destPath, html):
-        item = EpubItem()
-        item.id = 'html_%d' % (len(self.html_docs) + 1)
+        item = ManifestItem()
+        item.key = 'html_%d' % (len(self.html_docs) + 1)
         item.srcPath = srcPath
         item.destPath = destPath
         item.html = html
@@ -139,8 +138,8 @@ class Book(object):
         return item
 
     def add_css(self, srcPath, destPath):
-        item = EpubItem()
-        item.id = 'css_%d' % (len(self.css_docs) + 1)
+        item = ManifestItem()
+        item.key = 'css_%d' % (len(self.css_docs) + 1)
         item.srcPath = srcPath
         item.destPath = destPath
         item.mimeType = 'text/css'
@@ -245,7 +244,7 @@ class Book(object):
 
     def __write_book_data(self):
         for item in self.get_all_items():
-            print item.id, item.destPath
+            print item.key, item.destPath
             path = os.path.join(self.rootDir, 'OEBPS', item.destPath)
             if item.html:
                 with open(path, 'w') as fout:
