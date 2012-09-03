@@ -18,7 +18,9 @@ import os
 import shutil
 import subprocess
 import uuid
-import zipfile
+from zipfile import ZipFile
+from zipfile import ZIP_STORED
+from zipfile import ZIP_DEFLATED
 
 from genshi.template import TemplateLoader
 from genshi.template import NewTextTemplate
@@ -31,11 +33,35 @@ G_COVER = "cover"
 G_TITLE = "title-page"
 G_TOC = "toc"
 
+# Open Container Format: The OCF specifies how to organize these files
+# in the ZIP
+OCF_METADATA = "container.xml"
+
+# Navigation Control XML: Hierarchical table of contents for the EPUB file
+NCX_METADATA = "toc.ncx"
+
+# Open Packaging Format: Houses the EPUB book's metadata, file manifest,
+# and linear reading order
+OPF_METADATA = "content.opf"
+
+# Text Document: ASCII that contains the string application/epub+zip
+# It must also be uncompressed, unencrypted, and the first file
+# in the ZIP archive
+MIMETYPE_METADATA = "mimetype"
+
+# Contains the Book data(XHTML, CSS, etc) and NCX, OPF metadata files.
+OEBPS = "OEBPS"
+
+# Contains the OCF metadata file
+META_INF = "META-INF"
+
+# Mime
 METADATA_FILES = [
-    ('META-INF', 'container.xml', 'xml', MarkupTemplate),
-    ('OEBPS', 'toc.ncx', 'xml', MarkupTemplate),
-    ('OEBPS', 'content.opf', 'xml', MarkupTemplate),
-    ('.', 'mimetype', 'text', NewTextTemplate),
+    # Folder, File name, File type, Encoding, Template loader
+    ('.', MIMETYPE_METADATA, 'text', "latin-1", NewTextTemplate),
+    (META_INF, OCF_METADATA, 'xml', "utf-8", MarkupTemplate),
+    (OEBPS, OPF_METADATA, 'xml', "utf-8", MarkupTemplate),
+    (OEBPS, NCX_METADATA, 'xml', "utf-8", MarkupTemplate),
 ]
 
 
@@ -47,6 +73,7 @@ class TableOfContentsNode(object):
     depth = 0
 
     def __init__(self):
+        self.play_order = 0
         self.title = ""
         self.href = ""
         self.children = []
@@ -79,7 +106,6 @@ class Book(object):
     uuid = None
     title = ""
     creators = []
-    mime_type = "application/epub+zip"
 
     meta_info = []
     images = {}
@@ -222,14 +248,15 @@ class Book(object):
         return node
 
     def __write_metadata_files(self):
-        for folder, file_name, file_type, loader in METADATA_FILES:
+        self.tocMapRoot.update_play_order()
+        for folder, file_name, file_type, encode, loader in METADATA_FILES:
             path = os.path.join(self.rootDir, folder, file_name)
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
             with open(path, 'w') as target_file:
                 template = self.loader.load(file_name, cls=loader)
                 stream = template.generate(book=self)
-                target_file.write(stream.render(file_type))
+                target_file.write(stream.render(file_type, encoding=encode))
 
     def __write_book_data(self):
         for item in self.get_all_items():
@@ -255,18 +282,15 @@ class Book(object):
     def create_epub(root_dir, output_path):
         saved_cwd = os.getcwd()
         os.chdir(root_dir)
-        with zipfile.ZipFile(output_path, 'w') as epub_archive:
-            epub_archive.write('mimetype', compress_type=zipfile.ZIP_STORED)
-            files = []
-            files.append(os.path.join('META-INF', 'container.xml'))
-            files.append(os.path.join('OEBPS', 'content.opf'))
-            content_opf = os.path.join('OEBPS', 'content.opf')
-            manifest_items = Book.__get_manifest_items(content_opf)
-            for item_path in manifest_items:
-                files.append(os.path.join('OEBPS', item_path))
-            for file_path in files:
-                epub_archive.write(file_path,
-                                   compress_type=zipfile.ZIP_DEFLATED)
+        with ZipFile(output_path, 'w') as epub_archive:
+            for folder, file_name, _, _, _ in METADATA_FILES:
+                path = os.path.join(folder, file_name)
+                epub_archive.write(path, compress_type=ZIP_STORED)
+            opf_path = os.path.join(OEBPS, OPF_METADATA)
+            manifest_items = Book.__get_manifest_items(opf_path)
+            for file_name in manifest_items:
+                path = os.path.join(OEBPS, file_name)
+                epub_archive.write(path, compress_type=ZIP_DEFLATED)
             epub_archive.close()
         os.chdir(saved_cwd)
 
