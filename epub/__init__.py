@@ -180,7 +180,12 @@ class Book(object):
         self.meta_info.append((name, value, attributes))
 
     def render_meta_tags(self):
-        l = []
+        """
+        Generates Dublin Core metadata tags
+
+        Metadata information is written into content.opf and is utilized
+        by ereader devices for sorting and display.
+        """
         for name, value, attribute in self.meta_info:
             tag_open = '<dc:%s' % name
             if attribute:
@@ -188,8 +193,7 @@ class Book(object):
                     tag_open += ' opf:%s="%s"' % (attr_name, attr_value)
             tag_open += '>'
             tag_close = '</dc:%s>' % name
-            l.append((tag_open, value, tag_close))
-        return l
+            yield (tag_open, value, tag_close)
 
     def get_all_items(self):
         return sorted(
