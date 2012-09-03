@@ -220,27 +220,18 @@ class Book(object):
         except OSError:
             pass
 
-    def __write_container_xml(self):
-        path = os.path.join(self.rootDir, 'META-INF', 'container.xml')
-        with open(path, 'w') as fout:
-            tmpl = self.loader.load('container.xml')
-            stream = tmpl.generate()
-            fout.write(stream.render('xml'))
-
-    def __write_toc_ncx(self):
-        self.tocMapRoot.update_play_order()
-        path = os.path.join(self.rootDir, 'OEBPS', 'toc.ncx')
-        with open(path, 'w') as fout:
-            tmpl = self.loader.load('toc.ncx')
-            stream = tmpl.generate(book=self)
-            fout.write(stream.render('xml'))
-
-    def __write_content_opf(self):
-        path = os.path.join(self.rootDir, 'OEBPS', 'content.opf')
-        with open(path, 'w') as fout:
-            tmpl = self.loader.load('content.opf')
-            stream = tmpl.generate(book=self)
-            fout.write(stream.render('xml'))
+    def __write_metadata_files(self):
+        metadata_files = [
+            ('META-INF', 'container.xml', {}, ),
+            ('OEBPS', 'toc.ncx', {'book': self}, ),
+            ('OEBPS', 'content.opf', {'book': self}, ),
+        ]
+        for folder, file_name, template_args in metadata_files:
+            path = os.path.join(self.rootDir, folder, file_name)
+            with open(path, 'w') as target_file:
+                template = self.loader.load(file_name)
+                stream = template.generate(**template_args)
+                target_file.write(stream.render('xml'))
 
     def __write_book_data(self):
         for item in self.get_all_items():
@@ -296,6 +287,4 @@ class Book(object):
         self.__write_folders()
         self.__write_mimetype()
         self.__write_book_data()
-        self.__write_container_xml()
-        self.__write_content_opf()
-        self.__write_toc_ncx()
+        self.__write_metadata_files()
