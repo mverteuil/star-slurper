@@ -29,9 +29,9 @@ from lxml import etree
 
 
 # Guide Item Types
-G_COVER = "cover"
-G_TITLE = "title-page"
-G_TOC = "toc"
+R_COVER = "cover"
+R_TITLE = "title-page"
+R_TOC = "toc"
 
 # Open Container Format: The OCF specifies how to organize these files
 # in the ZIP
@@ -249,7 +249,7 @@ class Book(object):
         assert not self.cover_page
         self.cover_page = self.add_html('', 'title-page.html', html)
         self.add_spine_item(self.cover_page, True, -200)
-        self.add_guide_reference(G_TITLE, "Title Page", "title-page.html")
+        self.add_guide_reference(R_TITLE, "Title Page", "title-page.html")
 
     def __render_table_of_contents(self):
         assert self.toc_page
@@ -263,7 +263,7 @@ class Book(object):
         assert not self.toc_page
         self.toc_page = self.add_html('', 'toc.html', '')
         self.add_spine_item(self.toc_page, False, -100)
-        self.add_guide_reference(G_TOC, "Table of Contents", "toc.html")
+        self.add_guide_reference(R_TOC, "Table of Contents", "toc.html")
 
     def get_spine(self):
         return sorted(self.spine)
