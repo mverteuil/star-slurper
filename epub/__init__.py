@@ -55,7 +55,7 @@ OEBPS = "OEBPS"
 # Contains the OCF metadata file
 META_INF = "META-INF"
 
-# Mime
+# Mimetype must be in the first position by requirement of EPUB specification
 METADATA_FILES = [
     # Folder, File name, File type, Encoding, Template loader
     ('.', MIMETYPE_METADATA, 'text', "latin-1", NewTextTemplate),
