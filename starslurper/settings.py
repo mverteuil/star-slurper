@@ -23,9 +23,9 @@ RSS_CATEGORIES = json.loads(config.get('source', 'categories'))
 BASE_URL = config.get('source', 'base_url')
 
 INDEX_HTML_TEMPLATE = "index.html"
-CATEGORY_HTML_TEMPLATE = "_cat_toc.html"
-CSS_PATH = os.path.join("..", "css", "main.css")
-TEMPLATE_FOLDER = os.path.join(PROJECT_FOLDER, "template")
+# Used for CSS links in HTML
+CSS_PATH = os.path.join("main.css")
+TEMPLATE_FOLDER = os.path.join(PROJECT_FOLDER, "templates")
 OUTPUT_FOLDER = config.get('target', 'output_folder')
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)

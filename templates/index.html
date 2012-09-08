@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/" xml:lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8" />
+    <title>The Toronto Star | ${date}</title>
+    <link rel="stylesheet" href="css/main.css" type="text/css" />
+  </head>
+  <body>
+      <h1>The Toronto Star | ${date}</h1>
+      <ul>
+        <py:for each="category in categories">
+          <li>${category.name}
+              <ul>
+                <py:for each="article in category.articles">
+                <li><a href="${article.path}">${article.get_title()}</a></li>
+                </py:for>
+              </ul>
+          </li>
+        </py:for>
+      </ul>
+  </body>
+</html>

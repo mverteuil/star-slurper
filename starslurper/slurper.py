@@ -6,12 +6,12 @@ from datetime import datetime
 import logging
 import os
 import re
-import shutil
 import subprocess
 from urlparse import urlparse
 
 from bs4 import BeautifulSoup
 from feedreader import parser
+from genshi.template import TemplateLoader
 import requests
 
 import settings
@@ -19,6 +19,9 @@ import settings
 LOGGING_ENABLED = False
 log = logging.getLogger(__name__)
 
+XHTML_KWARGS = {'method': 'xhtml',
+                'doctype': 'xhtml11',
+                'drop_xml_decl': False}
 
 token_matcher = re.compile(r"/(\d+)--")
 
@@ -157,8 +160,8 @@ class Category(object):
     def __init__(self, edition, name):
         self.edition = edition
         self.name = name
-        self.toc_path = os.path.join(self.edition.path, "%s.html" % name)
-        self.folder_path = os.path.join(self.edition.path, name)
+        self.folder_path = self.edition.path
+        self.toc_path = os.path.join(self.folder_path, "%s.html" % name)
         self.feed_url = settings.RSS_TEMPLATE % name
 
     def __str__(self):
@@ -186,55 +189,30 @@ class Category(object):
         for upstream_article in self.check_feed_for_new_articles():
             article = upstream_article.download()
             self.articles.append(article.save())
-        self.save_table_of_contents()
+        #self.save_table_of_contents()
         return self
-
-    def save_table_of_contents(self):
-        """ Generates HTML table of contents from current state """
-        metadata = {
-            'date': datetime.today().strftime("%Y-%m-%d"),
-            'category': self.name
-        }
-        template = os.path.join(
-            settings.TEMPLATE_FOLDER,
-            settings.CATEGORY_HTML_TEMPLATE
-        )
-        toc = BeautifulSoup(open(template, "r+"))
-        for tag in toc.findAll(['title', 'h1', 'h2']):
-            tag.string = (tag.string % metadata)
-        for article in self.articles:
-            listitem_tag = toc.new_tag("li")
-            anchor_tag = toc.new_tag("a", href=article.path)
-            anchor_tag.string = article.get_title()
-            listitem_tag.append(anchor_tag)
-            toc.find('ul').append(listitem_tag)
-        with open(self.toc_path, "w+") as toc_file:
-            toc_file.write(toc.prettify().encode('utf-8'))
-        return toc
 
 
 class Edition(object):
     """ Newspaper edition. Editions contain a set of categories """
     date = datetime.today().strftime("%Y-%m-%d")
     categories = []
+    templates = None
     path = None
     toc_path = None
 
-    def __init__(self, rss_categories, base_path):
+    def __init__(self, templates, base_path, rss_categories):
         """ Generates the current edition from a list of RSS categories """
         self.path = os.path.join(base_path, "%s/" % self.date)
-        self.toc_path = os.path.join(self.path, settings.INDEX_HTML_TEMPLATE)
+        self.toc_path = os.path.join(self.path, "index.html")
+        self.templates = templates
         self.categories = [Category(self, c) for c in rss_categories]
 
     def save(self):
         """ Saves this edition to disk """
         # Copy from template folder
         try:
-            shutil.copytree(
-                settings.TEMPLATE_FOLDER,
-                self.path,
-                ignore=lambda x, y: ["_cat_toc.html", "index.html"],
-            )
+            os.mkdirs(self.path)
         except OSError, err:
             log.debug(err)
             log.info("Path already exists, updating downloaded files...")
@@ -244,25 +222,13 @@ class Edition(object):
 
     def save_table_of_contents(self):
         """ Generates HTML table of contents from current state """
-        metadata = {
-            'date': self.date
-        }
-        template = os.path.join(
-            settings.TEMPLATE_FOLDER,
-            settings.INDEX_HTML_TEMPLATE,
-        )
-        toc = BeautifulSoup(open(template, "r+"))
-        for tag in toc.findAll(['title', 'h1']):
-            tag.string = (tag.string % metadata)
-        for category in self.categories:
-            listitem_tag = toc.new_tag("li")
-            anchor_tag = toc.new_tag("a", href=category.toc_path)
-            anchor_tag.string = category.name
-            listitem_tag.append(anchor_tag)
-            toc.find('ul').append(listitem_tag)
         with open(self.toc_path, "w+") as toc_file:
-            toc_file.write(toc.prettify().encode('utf-8'))
-        return toc
+            template = self.templates.load(settings.INDEX_HTML_TEMPLATE)
+            stream = template.generate(date=self.date,
+                                       categories=self.categories)
+            toc_data = stream.render(**XHTML_KWARGS)
+            toc_file.write(toc_data)
+        return BeautifulSoup(toc_data)
 
 
 def with_logging(logged):
@@ -333,7 +299,10 @@ def convert_html_to_epub(input_file, output_file):
 
 @with_logging
 def main():
-    newspaper = Edition(settings.RSS_CATEGORIES, settings.OUTPUT_FOLDER)
+    templates = TemplateLoader("templates")
+    newspaper = Edition(templates,
+                        settings.OUTPUT_FOLDER,
+                        settings.RSS_CATEGORIES)
     newspaper.save()
     input_file = os.path.join(newspaper.path, settings.INDEX_HTML_TEMPLATE)
     output_file = os.path.join(

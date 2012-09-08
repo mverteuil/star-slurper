@@ -1,11 +1,13 @@
 from datetime import date
 import json
 import unittest
+import os
 import shutil
 import tempfile
 
 import bs4
 import feedreader
+from genshi.template import TemplateLoader
 import globalsub
 import mock
 import requests
@@ -65,7 +67,7 @@ class TestSlurper(unittest.TestCase):
     def test_save_category(self):
         """ Saves a category and its articles given an ID """
         assert self.work_folder
-        edition = slurper.Edition([], self.work_folder)
+        edition = slurper.Edition(None, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         mock_check_feed = mock.Mock(name="check_feed")
         mock_check_feed.return_value = [
@@ -93,7 +95,7 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        edition = slurper.Edition([], self.work_folder)
+        edition = slurper.Edition(None, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         articles = category.check_feed_for_new_articles()
         assert len(articles) == len(ENTRY_SAMPLE)
@@ -108,7 +110,7 @@ class TestSlurper(unittest.TestCase):
         mock_save_images = mock.Mock(name="save_images")
         mock_save_images.return_value = self.soup
         globalsub.subs(requests.get, mock_get)
-        edition = slurper.Edition([], self.work_folder)
+        edition = slurper.Edition(None, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         category.folder_path = self.work_folder
         article = slurper.DownloadedArticle(category, "derp", self.soup)
@@ -179,15 +181,16 @@ class TestSlurper(unittest.TestCase):
 
     @with_work_folder
     def test_save_table_of_contents(self):
-        """ Generates a category TOC document from the template """
-        mock_edition = mock.Mock()
-        mock_edition.path = self.work_folder
-        category = slurper.Category(mock_edition, "derp")
+        """ Generates a TOC document from the template """
+        templates = TemplateLoader("templates")
+        edition = slurper.Edition(templates, self.work_folder, [])
+        category = slurper.Category(edition, "derp")
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         category.articles = [article]
-        toc = category.save_table_of_contents()
-        assert "derp" in toc.findAll("title")[0].text
-        assert "derp" in toc.findAll("h2")[0].text
+        edition.categories.append(category)
+        os.makedirs(os.path.dirname(edition.toc_path))
+        toc = edition.save_table_of_contents()
+        assert "derp" in toc.findAll("li")[0].text
         assert date.today().isoformat() in toc.findAll("title")[0].text
         assert date.today().isoformat() in toc.findAll("h1")[0].text
-        assert len(toc.findAll("li")) == 1
+        assert len(toc.findAll("li")) == 2

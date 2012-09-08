@@ -1,8 +1,0 @@
-/* Star-slurper CSS Declarations */
-div#tdDoc {
-    page-break-after: avoid;
-}
-
-div#tdBody {
-    page-break-before: avoid;
-}
