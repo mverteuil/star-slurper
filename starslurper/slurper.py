@@ -212,7 +212,7 @@ class Edition(object):
         """ Saves this edition to disk """
         # Copy from template folder
         try:
-            os.mkdirs(self.path)
+            os.makedirs(self.path)
         except OSError, err:
             log.debug(err)
             log.info("Path already exists, updating downloaded files...")
