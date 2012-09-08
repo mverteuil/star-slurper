@@ -18,7 +18,7 @@ class TestBook(unittest.TestCase):
         book.enable_title_page()
         book.enable_table_of_contents()
 
-        book.add_css(r'template/css/main.css', 'main.css')
+        book.add_css(r'templates/main.css', 'main.css')
 
         n1 = book.add_html('', '1.html', get_minimal_html('Chapter 1'))
         n11 = book.add_html('', '2.html', get_minimal_html('Section 1.1'))

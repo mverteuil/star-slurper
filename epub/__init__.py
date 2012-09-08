@@ -135,7 +135,7 @@ class ManifestItem(object):
 
 class Book(object):
     """ Produces epub archives from model contents """
-    loader = TemplateLoader("templates")
+    templates = TemplateLoader("templates")
     lang = "en-US"
     uuid = None
     title = ""
@@ -239,7 +239,7 @@ class Book(object):
         assert self.cover_page
         if self.cover_page.html:
             return
-        tmpl = self.loader.load('title-page.html')
+        tmpl = self.templates.load('title-page.html')
         stream = tmpl.generate(book=self)
         self.cover_page.html = stream.render('xhtml',
                                              doctype='xhtml11',
@@ -253,7 +253,7 @@ class Book(object):
 
     def __render_table_of_contents(self):
         assert self.toc_page
-        tmpl = self.loader.load('toc.html')
+        tmpl = self.templates.load('toc.html')
         stream = tmpl.generate(book=self)
         self.toc_page.html = stream.render('xhtml',
                                            doctype='xhtml11',
@@ -305,7 +305,7 @@ class Book(object):
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
             with open(path, 'w') as target_file:
-                template = self.loader.load(file_name, cls=loader)
+                template = self.templates.load(file_name, cls=loader)
                 stream = template.generate(book=self)
                 target_file.write(stream.render(file_type, encoding=encode))
 
