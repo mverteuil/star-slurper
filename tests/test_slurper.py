@@ -107,20 +107,21 @@ class TestSlurper(unittest.TestCase):
         mock_get = mock.Mock(name="requests_get")
         mock_get.return_value = mock.Mock()
         mock_get.return_value.content = ARTICLE_SAMPLE.decode('latin-1')
-        mock_save_images = mock.Mock(name="save_images")
-        mock_save_images.return_value = self.soup
+        mock_download_image = mock.Mock()
+        mock_download_image.return_value = ("fake_name.jpg", "fake_path",)
         globalsub.subs(requests.get, mock_get)
         edition = slurper.Edition(None, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         category.folder_path = self.work_folder
         article = slurper.DownloadedArticle(category, "derp", self.soup)
-        article.save_images = mock_save_images
+        article.download_image = mock_download_image
         article.save()
         assert article.get_title() == self.soup.findAll('h1')[0].text
         assert article.get_date() == slurper.parse_date(self.soup)
         saved_data = open(article.path, "r+").read()
         assert saved_data
-        assert mock_save_images.call_count == 1
+        assert mock_download_image.call_count == 2
+        assert len(edition.images) == 1
 
     def test_parse_date(self):
         """ Finds the date of an article and return it as python Date obj """

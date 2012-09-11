@@ -123,6 +123,9 @@ class TableOfContentsNode(object):
         for child in self.children:
             child.__update_play_order(next_play_order)
 
+    def __repr__(self):
+        return "TOCNode: %s" % self.href
+
 
 class ManifestItem(object):
     def __init__(self):
@@ -131,6 +134,9 @@ class ManifestItem(object):
         self.dest_path = ''
         self.mimetype = ''
         self.html = ''
+
+    def __repr__(self):
+        return "Manifest: %s" % self.src_path
 
 
 class Book(object):

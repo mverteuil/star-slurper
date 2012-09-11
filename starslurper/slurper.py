@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 import os
 import re
+import shutil
 import subprocess
 from urlparse import urlparse
 
@@ -14,7 +15,9 @@ from feedreader import parser
 from genshi.template import TemplateLoader
 import requests
 
+from epub import Book
 import settings
+
 
 LOGGING_ENABLED = False
 log = logging.getLogger(__name__)
@@ -39,7 +42,7 @@ class DownloadedArticle(object):
         self.article_data = article_soup
         self.path = os.path.join(
             self.category.folder_path,
-            "%s.html" % self.token
+            "%s_%s.html" % (self.category.name, self.token)
         )
 
     def remove_tags(self):
@@ -80,6 +83,18 @@ class DownloadedArticle(object):
         self.set_content_type()
         self.set_styles()
 
+    def download_image(self, image_url):
+        local_name = urlparse(image_url).path.replace("/", "_")[1:]
+        local_path = os.path.join(self.category.folder_path, local_name)
+        if not os.path.exists(local_path):
+            log.info("Downloading article image: %s", local_path)
+            with open(local_path, "wb") as local_image:
+                response = requests.get(image_url)
+                local_image.write(response.content)
+        else:
+            log.debug("%s already exists. Skipping.", local_path)
+        return local_name, local_path
+
     def save_images(self):
         """
         Saves images for a downloaded article and replaces references in the
@@ -91,16 +106,9 @@ class DownloadedArticle(object):
             return url
         for image_tag in self.article_data.find_all('img'):
             image_url = add_base_if_missing(image_tag.get('src'))
-            local_name = urlparse(image_url).path.replace("/", "_")[1:]
+            local_name, local_path = self.download_image(image_url)
             image_tag['src'] = local_name
-            local_path = os.path.join(self.category.folder_path, local_name)
-            if not os.path.exists(local_path):
-                log.info("Downloading article image: %s", local_path)
-                with open(local_path, "wb") as local_image:
-                    response = requests.get(image_url)
-                    local_image.write(response.content)
-            else:
-                log.debug("%s already exists. Skipping.", local_path)
+            self.category.edition.images.add(local_path)
         return self.article_data
 
     def get_title(self):
@@ -123,7 +131,7 @@ class DownloadedArticle(object):
         return self
 
     def __str__(self):
-        return self.title
+        return self.get_title()
 
 
 class UpstreamArticle(object):
@@ -155,14 +163,20 @@ class Category(object):
     toc_path = None
     folder_path = None
     feed_url = None
-    articles = []
+    templates = None
+    articles = None
 
-    def __init__(self, edition, name):
-        self.edition = edition
-        self.name = name
-        self.folder_path = self.edition.path
-        self.toc_path = os.path.join(self.folder_path, "%s.html" % name)
+    def __init__(self, edition, name, templates=None):
         self.feed_url = settings.RSS_TEMPLATE % name
+        self.edition = edition
+        if templates:
+            self.templates = templates
+        else:
+            self.templates = self.edition.templates
+        self.folder_path = self.edition.path
+        self.name = name = name.replace("/", "_")
+        self.toc_path = os.path.join(self.folder_path, "%s.html" % name)
+        self.articles = []
 
     def __str__(self):
         return self.name
@@ -179,6 +193,15 @@ class Category(object):
         ]
         return upstream_articles
 
+    def save_table_of_contents(self):
+        """ Generates HTML table of contents from current state """
+        with open(self.toc_path, "w+") as toc_file:
+            template = self.templates.load(settings.CATEGORY_HTML_TEMPLATE)
+            stream = template.generate(date=self.edition.date, category=self)
+            toc_data = stream.render(**XHTML_KWARGS)
+            toc_file.write(toc_data)
+        return BeautifulSoup(toc_data)
+
     def save(self):
         """
         Retrieves a news category and its articles, generates a
@@ -189,14 +212,20 @@ class Category(object):
         for upstream_article in self.check_feed_for_new_articles():
             article = upstream_article.download()
             self.articles.append(article.save())
-        #self.save_table_of_contents()
+        if self.templates:
+            self.save_table_of_contents()
         return self
+
+    def iter_articles(self):
+        for article in sorted(self.articles):
+            yield (article.path, "%s.html" % article.token, article, )
 
 
 class Edition(object):
     """ Newspaper edition. Editions contain a set of categories """
     date = datetime.today().strftime("%Y-%m-%d")
-    categories = []
+    categories = None
+    images = None
     templates = None
     path = None
     toc_path = None
@@ -207,6 +236,7 @@ class Edition(object):
         self.toc_path = os.path.join(self.path, "index.html")
         self.templates = templates
         self.categories = [Category(self, c) for c in rss_categories]
+        self.images = set()
 
     def save(self):
         """ Saves this edition to disk """
@@ -225,10 +255,22 @@ class Edition(object):
         with open(self.toc_path, "w+") as toc_file:
             template = self.templates.load(settings.INDEX_HTML_TEMPLATE)
             stream = template.generate(date=self.date,
-                                       categories=self.categories)
+                                       newspaper=self)
             toc_data = stream.render(**XHTML_KWARGS)
             toc_file.write(toc_data)
         return BeautifulSoup(toc_data)
+
+    @property
+    def title(self):
+        return "The Toronto Star - %s" % self.date
+
+    def iter_categories(self):
+        for category in sorted(self.categories):
+            yield (category.toc_path, "%s.html" % category.name, category, )
+
+    def iter_images(self):
+        for image in sorted(self.images):
+            yield (image, os.path.split(image)[1], )
 
 
 def with_logging(logged):
@@ -304,12 +346,37 @@ def main():
                         settings.OUTPUT_FOLDER,
                         settings.RSS_CATEGORIES)
     newspaper.save()
-    input_file = os.path.join(newspaper.path, settings.INDEX_HTML_TEMPLATE)
-    output_file = os.path.join(
-        settings.OUTPUT_FOLDER,
-        "%s.%s" % (newspaper.date, settings.OUTPUT_FORMAT)
-    )
-    convert_html_to_epub(input_file, output_file)
+    book = Book()
+    book.title = newspaper.title
+    book.add_creator("Star-Slurper")
+    book.add_meta_info('date', '2010', event='publication')
+    book.enable_title_page()
+    book.enable_table_of_contents()
+    book.add_css(r'templates/main.css', 'main.css')
+    for c_index, c_data in enumerate(newspaper.iter_categories()):
+        i, o, category = c_data
+        print "%s %s %s" % c_data
+        manifest_item = book.add_html(i, o, None)
+        book.add_spine_item(manifest_item)
+        book.add_toc_node(manifest_item.dest_path, "%s" % c_index, 1)
+        for a_index, a_data in enumerate(category.iter_articles()):
+            i, o, _ = a_data
+            print "%s %s %s" % a_data
+            manifest_item = book.add_html(i, o, None)
+            book.add_spine_item(manifest_item)
+            book.add_toc_node(
+                manifest_item.dest_path,
+                "%s.%s" % (c_index, a_index),
+                2
+            )
+    [book.add_image(i, o) for (i, o) in newspaper.iter_images()]
+    root_dir = os.path.join("/", "tmp", newspaper.date)
+    if os.path.exists(root_dir):
+        shutil.rmtree(root_dir)
+    book.raw_publish(root_dir)
+    target_file = os.path.join(settings.OUTPUT_FOLDER,
+                               "%s.epub" % newspaper.date)
+    Book.create_epub(root_dir, target_file)
     log.info("Done!")
 
 if __name__ == "__main__":

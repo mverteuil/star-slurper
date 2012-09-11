@@ -4,16 +4,16 @@
   <head>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8" />
     <title>The Toronto Star | ${date}</title>
-    <link rel="stylesheet" href="css/main.css" type="text/css" />
+    <link rel="stylesheet" href="main.css" type="text/css" />
   </head>
   <body>
       <h1>The Toronto Star | ${date}</h1>
       <ul>
-        <py:for each="category in categories">
-          <li>${category.name}
+        <py:for each="_, out_file, category in newspaper.iter_categories()">
+            <li><a href="${out_file}">${category.name}</a>
               <ul>
-                <py:for each="article in category.articles">
-                <li><a href="${article.path}">${article.get_title()}</a></li>
+                <py:for each="_, out_file, article in category.iter_articles()">
+                <li><a href="${out_file}">${article.get_title()}</a></li>
                 </py:for>
               </ul>
           </li>
