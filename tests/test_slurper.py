@@ -49,6 +49,7 @@ class TestSlurper(unittest.TestCase):
         super(TestSlurper, self).setUp()
         self.temp_folder = tempfile.mkdtemp()
         self.soup = bs4.BeautifulSoup(ARTICLE_SAMPLE)
+        self.templates = TemplateLoader("templates")
 
     def tearDown(self):
         super(TestSlurper, self).tearDown()
@@ -67,7 +68,7 @@ class TestSlurper(unittest.TestCase):
     def test_save_category(self):
         """ Saves a category and its articles given an ID """
         assert self.work_folder
-        edition = slurper.Edition(None, self.work_folder, [])
+        edition = slurper.Edition(self.templates, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         mock_check_feed = mock.Mock(name="check_feed")
         mock_check_feed.return_value = [
@@ -95,7 +96,7 @@ class TestSlurper(unittest.TestCase):
         mock_parser = mock.Mock(name="parser")
         mock_parser.from_url.return_value = mock_feed
         globalsub.subs(feedreader.parser, mock_parser)
-        edition = slurper.Edition(None, self.work_folder, [])
+        edition = slurper.Edition(self.templates, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         articles = category.check_feed_for_new_articles()
         assert len(articles) == len(ENTRY_SAMPLE)
@@ -110,14 +111,24 @@ class TestSlurper(unittest.TestCase):
         mock_download_image = mock.Mock()
         mock_download_image.return_value = ("fake_name.jpg", "fake_path",)
         globalsub.subs(requests.get, mock_get)
-        edition = slurper.Edition(None, self.work_folder, [])
+        edition = slurper.Edition(self.templates, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         category.folder_path = self.work_folder
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         article.download_image = mock_download_image
         article.save()
         assert article.get_title() == self.soup.findAll('h1')[0].text
+        author = self.soup.find('div', 'td-author').find('strong').text
+        assert article.get_author() == author
         assert article.get_date() == slurper.parse_date(self.soup)
+        assert article.get_masthead() == self.soup.findAll('img')[0]['src']
+        assert article.get_image() == self.soup.find('img', 'topsImage')['src']
+        image_title = self.soup.find('h3', 'topsTitle').find('span').text
+        assert article.get_image_title() == image_title
+        image_credit = self.soup.find('span', 'topsCredit').text
+        assert article.get_image_credit() == image_credit
+        image_caption = self.soup.find('span', 'topsCaption').text
+        assert article.get_image_caption() == image_caption
         saved_data = open(article.path, "r+").read()
         assert saved_data
         assert mock_download_image.call_count == 2
@@ -183,8 +194,7 @@ class TestSlurper(unittest.TestCase):
     @with_work_folder
     def test_save_table_of_contents(self):
         """ Generates a TOC document from the template """
-        templates = TemplateLoader("templates")
-        edition = slurper.Edition(templates, self.work_folder, [])
+        edition = slurper.Edition(self.templates, self.work_folder, [])
         category = slurper.Category(edition, "derp")
         article = slurper.DownloadedArticle(category, "derp", self.soup)
         category.articles = [article]

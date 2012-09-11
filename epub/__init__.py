@@ -155,6 +155,7 @@ class Book(object):
     cover_image = None
     cover_page = None
     toc_page = None
+    render_toc_page = False
 
     spine = []
     guide = {}
@@ -270,6 +271,13 @@ class Book(object):
         self.toc_page = self.add_html('', 'toc.html', '')
         self.add_spine_item(self.toc_page, False, -100)
         self.add_guide_reference(R_TOC, "Table of Contents", "toc.html")
+        self.render_toc_page = True
+
+    def set_table_of_contents(self, src_path):
+        self.toc_page = self.add_html(src_path, 'toc.html', '')
+        self.add_spine_item(self.toc_page, False, -100)
+        self.add_guide_reference(R_TOC, "Table of Contents", "toc.html")
+
 
     def get_spine(self):
         return sorted(self.spine)
@@ -356,7 +364,7 @@ class Book(object):
     def raw_publish(self, rootDir):
         if self.cover_page:
             self.__render_title_page()
-        if self.toc_page:
+        if self.toc_page and self.render_toc_page:
             self.__render_table_of_contents()
         self.rootDir = rootDir
         self.__write_book_data()

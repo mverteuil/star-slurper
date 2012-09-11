@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/">
+  <head>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8" />
+    <title>The Toronto Star | ${article.category.edition.date} | ${article.get_title()}</title>
+    <link rel="stylesheet" href="main.css" type="text/css" />
+  </head>
+  <body>
+      <h1><a href="toc.html"><img src="${article.get_masthead()}" alt="The Toronto Star" /></a></h1>
+      <h2><a href="${article.category.name}.html">${article.category.name}</a></h2>
+      <h3>${article.get_title()}</h3>
+      <span py:if="article.get_author()" class="author">${article.get_author()}</span>
+      <div py:if="article.get_image()" class="article-image">
+          <img src="${article.get_image()}" alt="${article.get_image_title()}" />
+          <span class="image-credit">${article.get_image_credit()}</span>
+          <span class="image-caption">${article.get_image_caption()}</span>
+      </div>
+      <p py:for="paragraph in article.get_paragraphs()">${paragraph}</p>
+  </body>
+</html>

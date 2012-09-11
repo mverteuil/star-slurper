@@ -1,8 +1,60 @@
 /* Star-slurper CSS Declarations */
-div#tdDoc {
-    page-break-after: avoid;
+body {
+    font-size: 16px;
+    width: 45em;
 }
 
-div#tdBody {
-    page-break-before: avoid;
+h1, h2 {
+    font-size: 2.531em;
+    float:left;
+    text-transform: uppercase;
+    padding-right: 1.5em;
+    padding-bottom: 0;
+    margin-bottom: 0.296em;
+}
+
+h3 {
+    clear:left;
+    font-size: 1.688em;
+    padding: 0;
+    margin-bottom: 0.296em;
+}
+
+.author {
+    display: block;
+    float: left;
+    color: #777;
+    font-weight: bold;
+    margin-bottom: 0.296em;
+}
+
+.article-image {
+    display:block;
+    clear:left;
+    float:left;
+    width: 28.883em;
+    margin-bottom: 0.296em;
+}
+
+.image-credit, .image-caption{
+    font-size: 0.75em;
+    float: left;
+    clear: left;
+    color: #777;
+    font-weight: bold;
+    width: 95%;
+}
+
+img {
+    max-width: 28em;
+    clear:both;
+}
+
+a {
+    color: #000;
+    text-decoration: none;
+}
+
+p, ul {
+    clear:left;
 }

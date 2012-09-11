@@ -31,13 +31,18 @@ token_matcher = re.compile(r"/(\d+)--")
 
 class DownloadedArticle(object):
     """ Contains article metadata and file path """
+    templates = None
     category = None
     token = None
     article_data = None
     path = None
 
-    def __init__(self, category, token, article_soup):
+    def __init__(self, category, token, article_soup, templates=None):
         self.category = category
+        if templates:
+            self.templates = templates
+        else:
+            self.templates = self.category.templates
         self.token = token
         self.article_data = article_soup
         self.path = os.path.join(
@@ -115,9 +120,54 @@ class DownloadedArticle(object):
         """ Finds the title in the article data """
         return self.article_data.findAll('h1')[0].text
 
+    def get_author(self):
+        """ Finds the author in the article data """
+        author = self.article_data.find('div', 'td-author')
+        if author:
+            return author.find('strong').text
+        return ""
+
     def get_date(self):
         """ Finds the date in the article data """
         return parse_date(self.article_data)
+
+    def get_masthead(self):
+        """ Finds the masthead in the article data """
+        masthead = self.article_data.find('img', {'alt': 'Logo'})
+        if masthead:
+            return masthead['src']
+        return ""
+
+    def get_image(self):
+        """ Finds the image for this article if one exists """
+        image = self.article_data.find('img', 'topsImage')
+        if image:
+            return image['src']
+
+    def get_image_title(self):
+        """ Finds the image title for this article if one exists """
+        heading = self.article_data.find('h3', 'topsTitle')
+        if heading:
+            return heading.find('span').text
+        return ""
+
+    def get_image_credit(self):
+        """ Finds the image credit for this article if one exists """
+        credit = self.article_data.find('span', 'topsCredit')
+        if credit:
+            return credit.text
+        return ""
+
+    def get_image_caption(self):
+        """ Finds the image caption for this article if one exists """
+        caption = self.article_data.find('span', 'topsCaption')
+        if caption:
+            return caption.text
+        return ""
+
+    def get_paragraphs(self):
+        """ Finds the article body paragraphs """
+        return [node.text for node in self.article_data.findAll('p')]
 
     def save(self):
         """
@@ -126,8 +176,12 @@ class DownloadedArticle(object):
         """
         self.clean_data()
         self.save_images()
+        template = self.templates.load(settings.ARTICLE_HTML_TEMPLATE)
+        stream = template.generate(article=self)
+        article_data = stream.render(**XHTML_KWARGS)
+        article_data = BeautifulSoup(article_data)
         with open(self.path, "w+") as local_copy:
-            local_copy.write(self.article_data.prettify().encode('utf-8'))
+            local_copy.write(article_data.prettify().encode('utf-8'))
         return self
 
     def __str__(self):
@@ -351,23 +405,27 @@ def main():
     book.add_creator("Star-Slurper")
     book.add_meta_info('date', '2010', event='publication')
     book.enable_title_page()
-    book.enable_table_of_contents()
+    book.set_table_of_contents(newspaper.toc_path)
     book.add_css(r'templates/main.css', 'main.css')
     for c_index, c_data in enumerate(newspaper.iter_categories()):
         i, o, category = c_data
         print "%s %s %s" % c_data
         manifest_item = book.add_html(i, o, None)
         book.add_spine_item(manifest_item)
-        book.add_toc_node(manifest_item.dest_path, "%s" % c_index, 1)
+        book.add_toc_node(
+            manifest_item.dest_path,
+            category.name,
+            1,
+        )
         for a_index, a_data in enumerate(category.iter_articles()):
-            i, o, _ = a_data
+            i, o, article = a_data
             print "%s %s %s" % a_data
             manifest_item = book.add_html(i, o, None)
             book.add_spine_item(manifest_item)
             book.add_toc_node(
                 manifest_item.dest_path,
-                "%s.%s" % (c_index, a_index),
-                2
+                article.get_title(),
+                2,
             )
     [book.add_image(i, o) for (i, o) in newspaper.iter_images()]
     root_dir = os.path.join("/", "tmp", newspaper.date)
