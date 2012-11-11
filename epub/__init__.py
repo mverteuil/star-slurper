@@ -278,7 +278,6 @@ class Book(object):
         self.add_spine_item(self.toc_page, False, -100)
         self.add_guide_reference(R_TOC, "Table of Contents", "toc.html")
 
-
     def get_spine(self):
         return sorted(self.spine)
 
